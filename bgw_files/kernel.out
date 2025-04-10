@@ -1,0 +1,377 @@
+
+ BerkeleyGW version 4.0
+ BSE/Kernel code, Complex version, run on 10-Apr-2025 at 17:32:31 +0530
+
+                                                                 ..o.          
+                                                                .oxxo.         
+                                                               .oxxxxo...      
+                                                               oxxxxxxo.       
+                                                              .oxxxxxxx.       
+                                                              .ooooooxxo..     
+                                                              .oooooooxo..     
+                                                              .oooooxxo...     
+                                                       .........oxooo......    
+                                                 ............................  
+                                             ................................. 
+                                          .................................... 
+           .          ..oo. ....  .................................oooxxxxxxxo.
+     .............oxxxx@ox@@@x@x.....................o...........ooooooooooxx. 
+    .o.........oox@x.oo........xxx@@............ooxxxxo..........ooooxxxxxoxo  
+    .x........x@xxo...............o@xxo........oxxx@@@xoooooooooooooooxxxo...  
+    .o......ox@@o..................oox@o.....ooxxx@xoooxxxxxxxoooooooooooo.... 
+    o..ooooo@@xoooo....ooo...........x@o.....ooxxxxo   .oxxxxxxxxxxooooooo.... 
+    . .oooo@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@....ooooox.     .oxx@@@@@xxoo........ 
+      .ooooxxxxxxxooooooxooooooooooooooxo...oooooxx.        ..ox@xxxoo.........
+      .ooooooxxxx@xoooooooooooooxxoooooooooooxxxxx.            .oxxooooooooxxo.
+     .oooooxxxxx@@@xxxxxxxxxxxxxxxxxxxxxxxxoxxxxo.                .oxxxxxxxxo. 
+   ....oooxxxxx@@@xo..oxxx@@@@@@xxxxoxxoooooooxx.                  .oxxxoo..   
+  .....ooxxxx@@xo.       ........    .ooooooooxxo                              
+  ..oooxxxx@@@o                       .oooooooxoo.                             
+  ....oxooxxxxx.                       .ooo..oooo.                             
+  .....o.ooxxxxxo.                     .oooooooxo.                             
+ ......ooooxxxxxxo.                     .ooooooxoo..                           
+........ooxxxxxxxo..                     .o....oxoo...                         
+.......ooooxxxxxxxo.                     ........oooo.                         
+.ooooooo..ooxxxxoooo.                    .........ooo...                       
+..oxo...ooooxxxoooo..                    .ooo......oooo...                     
+  .ooooo....o.                            .oxxxoo....ooo....                   
+    .oooooo...                              ...ooooo...ooo..                   
+       ...                                     .oo.......                      
+                                               ....ooo...                      
+                      __              __                                       
+ ______              [  |            [  |                 ._____  _          _ 
+|_   _ \              | |  _          | |                /  ___ \| |        | |
+  | |_) | .---.  _. _.| | / |  .---.  | | .---.  _    _ / /    \_|\ \  /\  / / 
+  |  __'./ /__\\[ /`\_| '' <  / /__\\ | |/ /__\\| \  | | |   _____ \ \/  \/ /  
+ _| |__| | \__. | |   | |`\ \ | \___. | || \___. \ \/ / \ \.___| |  \  /\  /   
+|_______/ \.__./[_]  [__|  \_] \.__./[___]\.__./  \  /   \.____./    \/  \/    
+                                                  / /                          
+                                                 /_/                           
+ --------------------------------------------------------------------------------
+ Please cite the main BerkeleyGW paper when using results from this calculation:
+
+ Jack Deslippe, Georgy Samsonidze, David A. Strubbe, Manish Jain, Marvin L.
+ Cohen, and Steven G. Louie, "BerkeleyGW: A Massively Parallel Computer Package
+ for the Calculation of the Quasiparticle and Optical Properties of Materials
+ and Nanostructures," Comput. Phys. Commun. 183, 1269 (2012)
+
+ Aditionally, PLEASE CITE ALL PAPERS REPORTED AT THE END OF THIS CALCULATION.
+ --------------------------------------------------------------------------------
+
+ Running MPI version (parallel)
+ Running with 1 MPI task(s)
+ Using OpenMP. Number of threads per MPI task: 16
+
+ Compilation flags:
+ - Compiler: GNU
+ - Para. flags: MPI, OMP
+ - Math  flags: USESCALAPACK, UNPACKED, USEFFTW3, HDF5
+ - Debug flags: 
+
+ Calculating the kernel only for (v,c)->(v',c') transitions.
+
+ Running with verbosity level 1 (default).
+
+ We are doing a calculation with zero exciton momentum
+
+
+ Running with semiconductor screening
+
+ We are not communicating
+
+ We will not reuse wavefunction FFTs.
+ We are using no truncation
+ Highest occupied band (coarse grid) = 4
+ Valence max    (coarse grid) = 7.587618 eV
+ Conduction min (coarse grid) = 9.952567 eV
+ Middle energy  (coarse grid) = 8.770093 eV
+ Fermi  energy  (coarse grid) = 8.770093 eV
+
+ No symmetries used in the coarse grid sampling
+
+ Parallelization strategy: (k)^2
+ - Breaking transitions into (v,c)^2 blocks
+ - Distributing each block with (k)^2 transitions to blocks of processors
+ Parallelizing calculation with blocks and pools:
+ - Number of transitions per block: 1
+ - Number of MPI ranks per block: 1
+ - Number of transitions per MPI rank: 1
+
+ Memory available: 23980.3 MB per PE
+ Memory required for execution: .0 MB per PE
+ Extra memory required for vcoul: .0 MB per PE
+
+ Started reading wavefunctions (WFN_co) with 2 state(s) at 17:32:31.
+ [ 17:32:31 |   0% ] state 1 / 2.
+ [ 17:32:31 |  50% ] state 2 / 2.
+ Finished reading wavefunctions (WFN_co) at 17:32:31.
+ Elapsed time: 0 s.
+
+
+ Crystal wavefunctions read from file WFN_co:
+ - Number of k-points in WFN_co: 1
+ - Number of k-points in the full BZ of WFN_co: 1
+
+ GPU acceleration is : DISABLED
+
+ Algorithms used:
+ - mtxel : CPU_ALGO
+ - w_sum : CPU_ALGO
+ - g_sum : CPU_ALGO
+
+ Calculation parameters:
+ - This is a Bethe-Salpeter-equation calculation.
+ - Cutoff of the bare Coulomb interaction (Ry): 4.00
+ - Cutoff of the screened Coulomb interaction (Ry): 2.00
+ - Number of G-vectors up to the bare int. cutoff: 27
+ - Number of G-vectors up to the screened int. cutoff: 15
+ - Number of valence bands: 1
+ - Number of conduction bands: 1
+ - Number of spins: 1
+ - Number of spinors: 1
+
+ Epsilon matrix for q->0 read from eps0mat.h5:
+ - Number of q-points: 1
+ - Dielectric cutoff (Ry): 2.00
+
+
+ Calculating Coulomb potential.
+ Note: for G=0: setting q0 =  0.001000  0.001000  0.001000
+
+ Started calculation of matrix elements with 1 blocked transition(s) at 17:32:31.
+ [ 17:32:31 |   0% ] blocked transition 1 / 1.
+ mccp(           1 ,           1 ,           1 ,           1 ) =               (0.99999999999999967,0.0000000000000000)
+ mccp(           2 ,           1 ,           1 ,           1 ) =        (-0.10690111357630139,4.95793896337569277E-007)
+ mccp(           3 ,           1 ,           1 ,           1 ) =         (0.10718661993812255,9.39399155169749174E-007)
+ mccp(           4 ,           1 ,           1 ,           1 ) =         (0.10719029431650572,8.14252705500707374E-007)
+ mccp(           5 ,           1 ,           1 ,           1 ) =         (0.10719354159840819,5.03265757499180861E-007)
+ mccp(           6 ,           1 ,           1 ,           1 ) =        (0.10719354159840819,-5.03265757500326897E-007)
+ mccp(           7 ,           1 ,           1 ,           1 ) =        (0.10719029431650572,-8.14252705511235147E-007)
+ mccp(           8 ,           1 ,           1 ,           1 ) =        (0.10718661993812252,-9.39399155165900998E-007)
+ mccp(           9 ,           1 ,           1 ,           1 ) =       (-0.10690111357630139,-4.95793896337214264E-007)
+ mccp(          10 ,           1 ,           1 ,           1 ) =        (-0.31787846147717158,1.67146854949721909E-006)
+ mccp(          11 ,           1 ,           1 ,           1 ) =        (-0.31825687999489083,8.14355333797179188E-007)
+ mccp(          12 ,           1 ,           1 ,           1 ) =        (-0.31462740453588012,2.06590795613693944E-006)
+ mccp(          13 ,           1 ,           1 ,           1 ) =       (-0.31462740453588017,-2.06590795614517515E-006)
+ mccp(          14 ,           1 ,           1 ,           1 ) =       (-0.31825687999489083,-8.14355333816355590E-007)
+ mccp(          15 ,           1 ,           1 ,           1 ) =       (-0.31787846147717158,-1.67146854950383971E-006)
+ mccp(          16 ,           1 ,           1 ,           1 ) =         (0.23416806305285984,1.68430969113840202E-006)
+ mccp(          17 ,           1 ,           1 ,           1 ) =         (0.23990112237806799,4.36527390029123071E-007)
+ mccp(          18 ,           1 ,           1 ,           1 ) =         (0.23930883543955050,1.20455022849417718E-006)
+ mccp(          19 ,           1 ,           1 ,           1 ) =    (9.45325080436280191E-002,1.64301968850299292E-007)
+ mccp(          20 ,           1 ,           1 ,           1 ) =    (9.47267408588710752E-002,3.44609780678817348E-007)
+ mccp(          21 ,           1 ,           1 ,           1 ) =   (9.64528741647909110E-002,-1.84819705567037735E-007)
+ mccp(          22 ,           1 ,           1 ,           1 ) =    (9.64528741647909110E-002,1.84819705577787668E-007)
+ mccp(          23 ,           1 ,           1 ,           1 ) =   (9.47267408588710891E-002,-3.44609780671680461E-007)
+ mccp(          24 ,           1 ,           1 ,           1 ) =   (9.45325080436280329E-002,-1.64301968858697359E-007)
+ mccp(          25 ,           1 ,           1 ,           1 ) =        (0.23930883543955050,-1.20455022845440962E-006)
+ mccp(          26 ,           1 ,           1 ,           1 ) =        (0.23990112237806804,-4.36527390028564506E-007)
+ mccp(          27 ,           1 ,           1 ,           1 ) =        (0.23416806305285989,-1.68430969111043765E-006)
+ mvvp(           1 ,           1 ,           1 ,           1 ) =               (0.99999999999999967,0.0000000000000000)
+ mvvp(           2 ,           1 ,           1 ,           1 ) =         (0.25513284417041604,1.36468060852206394E-007)
+ mvvp(           3 ,           1 ,           1 ,           1 ) =        (0.42644081937080619,-3.90627473792976385E-006)
+ mvvp(           4 ,           1 ,           1 ,           1 ) =        (0.42587571052821876,-9.36231120789385631E-007)
+ mvvp(           5 ,           1 ,           1 ,           1 ) =        (0.42349613830019783,-1.72975749409345432E-006)
+ mvvp(           6 ,           1 ,           1 ,           1 ) =         (0.42349613830019783,1.72975749409793492E-006)
+ mvvp(           7 ,           1 ,           1 ,           1 ) =         (0.42587571052821882,9.36231120791592364E-007)
+ mvvp(           8 ,           1 ,           1 ,           1 ) =         (0.42644081937080619,3.90627473792411245E-006)
+ mvvp(           9 ,           1 ,           1 ,           1 ) =        (0.25513284417041604,-1.36468060836309015E-007)
+ mvvp(          10 ,           1 ,           1 ,           1 ) =        (0.29761610699058239,-1.53023240719534730E-006)
+ mvvp(          11 ,           1 ,           1 ,           1 ) =        (0.29554565550780759,-1.17497229710022916E-006)
+ mvvp(          12 ,           1 ,           1 ,           1 ) =        (0.29505407568797781,-2.49465064754876748E-006)
+ mvvp(          13 ,           1 ,           1 ,           1 ) =         (0.29505407568797781,2.49465064756762624E-006)
+ mvvp(          14 ,           1 ,           1 ,           1 ) =         (0.29554565550780754,1.17497229709740854E-006)
+ mvvp(          15 ,           1 ,           1 ,           1 ) =         (0.29761610699058239,1.53023240719973175E-006)
+ mvvp(          16 ,           1 ,           1 ,           1 ) =        (0.27216637264601301,-3.77814952425814497E-008)
+ mvvp(          17 ,           1 ,           1 ,           1 ) =        (0.27292112806801172,-1.09680408260839863E-007)
+ mvvp(          18 ,           1 ,           1 ,           1 ) =        (0.27607754934151346,-1.53422144964994331E-007)
+ mvvp(          19 ,           1 ,           1 ,           1 ) =        (0.15451906581243358,-4.36341266103398041E-007)
+ mvvp(          20 ,           1 ,           1 ,           1 ) =        (0.15435709965554548,-6.47602558887845552E-007)
+ mvvp(          21 ,           1 ,           1 ,           1 ) =         (0.15456262499578452,1.91641526978691081E-007)
+ mvvp(          22 ,           1 ,           1 ,           1 ) =        (0.15456262499578452,-1.91641526981193560E-007)
+ mvvp(          23 ,           1 ,           1 ,           1 ) =         (0.15435709965554548,6.47602558886182297E-007)
+ mvvp(          24 ,           1 ,           1 ,           1 ) =         (0.15451906581243358,4.36341266103538649E-007)
+ mvvp(          25 ,           1 ,           1 ,           1 ) =         (0.27607754934151346,1.53422144952058470E-007)
+ mvvp(          26 ,           1 ,           1 ,           1 ) =         (0.27292112806801172,1.09680408273497632E-007)
+ mvvp(          27 ,           1 ,           1 ,           1 ) =         (0.27216637264601301,3.77814952248514156E-008)
+ mvc(           1 ,           1 ,           1 ,           1 ) =  (-2.27909670195757658E-016,-7.67873918885186355E-017)
+ mvc(           2 ,           1 ,           1 ,           1 ) =  (-5.47103106183658081E-002,-2.49071732059530579E-002)
+ mvc(           3 ,           1 ,           1 ,           1 ) =         (0.20472676776005400,9.31917166241450351E-002)
+ mvc(           4 ,           1 ,           1 ,           1 ) =         (0.20387953813703166,9.28077285614626879E-002)
+ mvc(           5 ,           1 ,           1 ,           1 ) =         (0.20350078418573853,9.26343615974295209E-002)
+ mvc(           6 ,           1 ,           1 ,           1 ) =       (-0.20349983262464857,-9.26363304079774880E-002)
+ mvc(           7 ,           1 ,           1 ,           1 ) =       (-0.20387893822483469,-9.28084546781104691E-002)
+ mvc(           8 ,           1 ,           1 ,           1 ) =       (-0.20472477540325454,-9.31962605366140340E-002)
+ mvc(           9 ,           1 ,           1 ,           1 ) =    (5.47122961158933996E-002,2.49033886806925737E-002)
+ mvc(          10 ,           1 ,           1 ,           1 ) =         (0.16204341737642630,7.37606029618131515E-002)
+ mvc(          11 ,           1 ,           1 ,           1 ) =         (0.16050117735943670,7.30585695560876658E-002)
+ mvc(          12 ,           1 ,           1 ,           1 ) =         (0.15697736859985470,7.14539046490170193E-002)
+ mvc(          13 ,           1 ,           1 ,           1 ) =       (-0.15697424703808352,-7.14603646671848197E-002)
+ mvc(          14 ,           1 ,           1 ,           1 ) =       (-0.16049849355454798,-7.30639206142957021E-002)
+ mvc(          15 ,           1 ,           1 ,           1 ) =       (-0.16204042109417549,-7.37663904359096151E-002)
+ mvc(          16 ,           1 ,           1 ,           1 ) =    (6.44376810674463039E-003,2.93317737032713086E-003)
+ mvc(          17 ,           1 ,           1 ,           1 ) =    (4.54638298715127030E-003,2.06908020490430278E-003)
+ mvc(          18 ,           1 ,           1 ,           1 ) =    (6.10328523992098321E-003,2.77759517214063974E-003)
+ mvc(          19 ,           1 ,           1 ,           1 ) =    (8.38017482915171213E-005,3.79187552682704832E-005)
+ mvc(          20 ,           1 ,           1 ,           1 ) =    (6.05514416730628985E-004,2.75465576423472775E-004)
+ mvc(          21 ,           1 ,           1 ,           1 ) =  (-5.32076062523624007E-004,-2.42460800071450774E-004)
+ mvc(          22 ,           1 ,           1 ,           1 ) =    (5.32506848452189339E-004,2.42016729308536314E-004)
+ mvc(          23 ,           1 ,           1 ,           1 ) =  (-6.05162274763125030E-004,-2.75937505579268688E-004)
+ mvc(          24 ,           1 ,           1 ,           1 ) =  (-8.32473392319955870E-005,-3.85021825797082136E-005)
+ mvc(          25 ,           1 ,           1 ,           1 ) =  (-6.10265860146784467E-003,-2.77846506724501374E-003)
+ mvc(          26 ,           1 ,           1 ,           1 ) =  (-4.54589978298248956E-003,-2.06974428808929427E-003)
+ mvc(          27 ,           1 ,           1 ,           1 ) =  (-6.44347751052629699E-003,-2.93335171463830497E-003)
+ mvpcp(           1 ,           1 ,           1 ,           1 ) =  (-2.27909670195757658E-016,-7.67873918885186355E-017)
+ mvpcp(           2 ,           1 ,           1 ,           1 ) =  (-5.47103106183658081E-002,-2.49071732059530579E-002)
+ mvpcp(           3 ,           1 ,           1 ,           1 ) =         (0.20472676776005400,9.31917166241450351E-002)
+ mvpcp(           4 ,           1 ,           1 ,           1 ) =         (0.20387953813703166,9.28077285614626879E-002)
+ mvpcp(           5 ,           1 ,           1 ,           1 ) =         (0.20350078418573853,9.26343615974295209E-002)
+ mvpcp(           6 ,           1 ,           1 ,           1 ) =       (-0.20349983262464857,-9.26363304079774880E-002)
+ mvpcp(           7 ,           1 ,           1 ,           1 ) =       (-0.20387893822483469,-9.28084546781104691E-002)
+ mvpcp(           8 ,           1 ,           1 ,           1 ) =       (-0.20472477540325454,-9.31962605366140340E-002)
+ mvpcp(           9 ,           1 ,           1 ,           1 ) =    (5.47122961158933996E-002,2.49033886806925737E-002)
+ mvpcp(          10 ,           1 ,           1 ,           1 ) =         (0.16204341737642630,7.37606029618131515E-002)
+ mvpcp(          11 ,           1 ,           1 ,           1 ) =         (0.16050117735943670,7.30585695560876658E-002)
+ mvpcp(          12 ,           1 ,           1 ,           1 ) =         (0.15697736859985470,7.14539046490170193E-002)
+ mvpcp(          13 ,           1 ,           1 ,           1 ) =       (-0.15697424703808352,-7.14603646671848197E-002)
+ mvpcp(          14 ,           1 ,           1 ,           1 ) =       (-0.16049849355454798,-7.30639206142957021E-002)
+ mvpcp(          15 ,           1 ,           1 ,           1 ) =       (-0.16204042109417549,-7.37663904359096151E-002)
+ mvpcp(          16 ,           1 ,           1 ,           1 ) =    (6.44376810674463039E-003,2.93317737032713086E-003)
+ mvpcp(          17 ,           1 ,           1 ,           1 ) =    (4.54638298715127030E-003,2.06908020490430278E-003)
+ mvpcp(          18 ,           1 ,           1 ,           1 ) =    (6.10328523992098321E-003,2.77759517214063974E-003)
+ mvpcp(          19 ,           1 ,           1 ,           1 ) =    (8.38017482915171213E-005,3.79187552682704832E-005)
+ mvpcp(          20 ,           1 ,           1 ,           1 ) =    (6.05514416730628985E-004,2.75465576423472775E-004)
+ mvpcp(          21 ,           1 ,           1 ,           1 ) =  (-5.32076062523624007E-004,-2.42460800071450774E-004)
+ mvpcp(          22 ,           1 ,           1 ,           1 ) =    (5.32506848452189339E-004,2.42016729308536314E-004)
+ mvpcp(          23 ,           1 ,           1 ,           1 ) =  (-6.05162274763125030E-004,-2.75937505579268688E-004)
+ mvpcp(          24 ,           1 ,           1 ,           1 ) =  (-8.32473392319955870E-005,-3.85021825797082136E-005)
+ mvpcp(          25 ,           1 ,           1 ,           1 ) =  (-6.10265860146784467E-003,-2.77846506724501374E-003)
+ mvpcp(          26 ,           1 ,           1 ,           1 ) =  (-4.54589978298248956E-003,-2.06974428808929427E-003)
+ mvpcp(          27 ,           1 ,           1 ,           1 ) =  (-6.44347751052629699E-003,-2.93335171463830497E-003)
+ Finished calculation of matrix elements at 17:32:31.
+ Elapsed time: 0 s.
+
+ Expected size of the BSE matrices:
+   bsemat.h5: .005 MB
+
+
+ Frobenius norm of the matrices per spin:
+ - Head :  1.000000000000E+0000
+ - Wing :  0.000000000000E+0000
+ - Body :  2.083082968664E-0002
+ - X    :  3.932642472172E-0001
+
+
+********************************************************************************
+*                                                                              *
+* Your calculation employed methods and algorithms published in peer-reviewed  *
+* papers. Please, cite the following references to give proper credit to their *
+*          authors and help support future development of BerkeleyGW.          *
+*                                                                              *
+********************************************************************************
+
+ J. Deslippe, G. Samsonidze, D. A. Strubbe, M. Jain, M. L. Cohen, and S. G.
+ Louie, BerkeleyGW: A Massively Parallel Computer Package for the Calculation
+ of the Quasiparticle and Optical Properties of Materials and Nanostructures,
+ Computer Physics Communications 183, 1269 (2012).
+
+ M. Rohlfing and S. G. Louie, Electron-Hole Excitations and Optical Spectra
+ from First Principles, Phys. Rev. B 62, 4927 (2000).
+
+********************************************************************************
+
+
+                             CPU (s)        WALL (s)          #
+
+ INPUT:          (min.)        0.002           0.005          1
+                 (PE 0)        0.002           0.005
+                 (max.)        0.002           0.005
+ EPSCOPY:        (min.)        0.004           0.007          1
+                 (PE 0)        0.004           0.007
+                 (max.)        0.004           0.007
+ GENWF:          (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ EXCWF:          (min.)        0.000           0.000          0
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL:          (min.)        0.102           0.008          1
+                 (PE 0)        0.102           0.008
+                 (max.)        0.102           0.008
+ FULLBZ:         (min.)        0.000           0.000          2
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ BSEWRITE:       (min.)        0.083           0.006          1
+                 (PE 0)        0.083           0.006
+                 (max.)        0.083           0.006
+ MTXEL Setup:    (min.)        0.000           0.000          2
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL Vcoul:    (min.)        0.000           0.000          2
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL W:        (min.)        0.000           0.000         15
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL W-Sum:    (min.)        0.000           0.000         16
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL FFT Dir:  (min.)        0.055           0.004          1
+                 (PE 0)        0.055           0.004
+                 (max.)        0.055           0.004
+ MTXEL High G:   (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL FFT X:    (min.)        0.032           0.002          1
+                 (PE 0)        0.032           0.002
+                 (max.)        0.032           0.002
+ MTXEL BSEX:     (min.)        0.000           0.001          1
+                 (PE 0)        0.000           0.001
+                 (max.)        0.000           0.001
+ MTXEL INDEX:    (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL EPSHEAD:  (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL EPSREAD:  (min.)        0.000           0.000         15
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL EPSOPEN:  (min.)        0.000           0.000          0
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL G SUM:    (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL COMM:     (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ BSEWRITE COMM:  (min.)        0.081           0.004          1
+                 (PE 0)        0.081           0.004
+                 (max.)        0.081           0.004
+ BSEWRITE I/O:   (min.)        0.002           0.002          1
+                 (PE 0)        0.002           0.002
+                 (max.)        0.002           0.002
+ MTXEL FFT CC:   (min.)        0.040           0.003          1
+                 (PE 0)        0.040           0.003
+                 (max.)        0.040           0.003
+ MTXEL FFT VV:   (min.)        0.015           0.001          1
+                 (PE 0)        0.015           0.001
+                 (max.)        0.015           0.001
+ MTXEL FIND:     (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL ALLOC:    (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL FFTBOX:   (min.)        0.000           0.000          1
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ MTXEL FFT VC:   (min.)        0.032           0.002          1
+                 (PE 0)        0.032           0.002
+                 (max.)        0.032           0.002
+
+ TOTAL:          (min.)        0.270           0.033
+                 (PE 0)        0.270           0.033
+                 (max.)        0.270           0.033
+

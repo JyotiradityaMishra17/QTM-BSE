@@ -1,0 +1,9 @@
+epsilon_cutoff 2.0
+use_wfn_hdf5
+
+number_bands 8
+write_vcoul
+
+begin qpoints
+  0.001000000  0.001000000  0.001000000  1.0  1
+end
