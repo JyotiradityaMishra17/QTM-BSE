@@ -482,7 +482,7 @@ class ChargeMtxEL:
                     continue
 
                 psi_val = eigvec_val(k_idx, band_idx_val)
-                prod = np.multiply(np.conj(psi_val), psi_con)
+                prod = np.multiply(np.conj(psi_con), psi_val)
 
                 fft_prod = np.zeros(
                     fft_driver.idxgrid.shape, dtype = complex
