@@ -88,6 +88,7 @@ class KernelMtxEl:
                 )
             )
 
+        # NOTE: sorting is unclear
         self.l_epsinv = []
         for i_q in range(self.qpts.numq):
             epsinv = self.l_epsmats[i_q]
@@ -97,7 +98,7 @@ class KernelMtxEl:
             )
 
             self.l_epsinv.append(
-                reorder_2d_matrix_sorted_gvecs(epsinv, np.argsort(sort_order))
+                reorder_2d_matrix_sorted_gvecs(epsinv, sort_order)
             )
             
         self.q0val = q0val
@@ -616,8 +617,6 @@ class KernelMtxEl:
 
                     mvvp = data_mvvp[0]
                     q_idx = data_mvvp[1]
-
-                    print(q_idx)
 
                     mccp = self.charge_mtxel.mccp(
                         k_idx=k_idx,
