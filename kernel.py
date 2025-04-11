@@ -74,16 +74,16 @@ class KernelMtxEl:
                 GkSpace(
                     gwfn=self.gspace,
                     k_cryst=self.qpts.cryst[i_q],
-                    ecutwfn=self.epsinp.epsilon_cutoff * RYDBERG_HART,
+                    # ecutwfn=self.epsinp.epsilon_cutoff * RYDBERG_HART,
                 )
             )
 
-        self.vcoul = Vcoul(
-            gspace=self.gspace,
-            qpts=self.qpts,
-            bare_coulomb_cutoff=sigmainp.bare_coulomb_cutoff,
-            parallel=self.in_parallel,
-        )
+        # self.vcoul = Vcoul(
+        #     gspace=self.gspace,
+        #     qpts=self.qpts,
+        #     bare_coulomb_cutoff=10*sigmainp.bare_coulomb_cutoff,
+        #     parallel=self.in_parallel,
+        # )
 
         # self.vcoul.calculate_vcoul(averaging_func=self.vcoul.v_minibz_montecarlo_hybrid)
         self.l_epsinv = []
@@ -194,23 +194,23 @@ class KernelMtxEl:
             mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
             mvvp,   # Charge matrix element for conduction bands, k = k_idx, k' = kp_idx
     ):
-        # Set up parameters for head with G = 0, G' = 0.
-        epsinv_0_0 = np.zeros_like(epsinv)
-        epsinv_0_0[0, 0] = 1 # epsinv -> (g = 0, G = 0)
+        # # Set up parameters for head with G = 0, G' = 0.
+        # epsinv_0_0 = np.zeros_like(epsinv)
+        # epsinv_0_0[0, 0] = 1 # epsinv -> (g = 0, G = 0)
 
-        # Shape required for head is (v,V,c,C).
-        # mccp -> (c, C, g), epsinv -> (g = 0, G = 0), vqg -> (G), mvvp -> (v, V, G)
-        einstr = 'cCg, gG, G, vVG -> vVcC'
-        head = np.einsum(
-            einstr,
-            mccp,
-            epsinv_0_0,
-            np.ones_like(vqg),
-            np.conj(mvvp),
-            optimize=True,
-        )
+        # # Shape required for head is (v,V,c,C).
+        # # mccp -> (c, C, g), epsinv -> (g = 0, G = 0), vqg -> (G), mvvp -> (v, V, G)
+        # einstr = 'cCg, gG, G, vVG -> vVcC'
+        # head = np.einsum(
+        #     einstr,
+        #     mccp,
+        #     epsinv_0_0,
+        #     np.ones_like(vqg),
+        #     np.conj(mvvp),
+        #     optimize=True,
+        # )
 
-        return head
+        return 1 # head
     
     # Define helper method to calculate the wings of the direct kernel matrix.
     def calc_wings(
@@ -221,54 +221,54 @@ class KernelMtxEl:
             mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
             mvvp,   # Charge matrix element for conduction bands, k = k_idx, k' = kp_idx
     ):
-        # Set up parameters for wing with G = 0, G' != 0.
-        mccp_local = np.zeros_like(mccp)
-        mccp_local[..., 0] = mccp[..., 0] # mccp -> (c, C, g = 0)
+        # # Set up parameters for wing with G = 0, G' != 0.
+        # mccp_local = np.zeros_like(mccp)
+        # mccp_local[..., 0] = mccp[..., 0] # mccp -> (c, C, g = 0)
 
-        epsinv_0_n0 = deepcopy(epsinv)
-        epsinv_0_n0[:, 0] = 0.0
+        # epsinv_0_n0 = deepcopy(epsinv)
+        # epsinv_0_n0[:, 0] = 0.0
 
-        # Shape required for wing1 is (v,V,c,C).
-        # mccp -> (c, C, g = 0), epsinv -> (g, G != 0), vqg -> G, mvvp -> (v, V, G)
-        einstr = 'cCg, gG, G, vVG -> vVcC'
-        wing = np.einsum(
-            einstr,
-            mccp_local,
-            epsinv_0_n0,
-            vqg,
-            np.conj(mvvp),
-            optimize=True,
-        )
+        # # Shape required for wing1 is (v,V,c,C).
+        # # mccp -> (c, C, g = 0), epsinv -> (g, G != 0), vqg -> G, mvvp -> (v, V, G)
+        # einstr = 'cCg, gG, G, vVG -> vVcC'
+        # wing = np.einsum(
+        #     einstr,
+        #     mccp_local,
+        #     epsinv_0_n0,
+        #     vqg,
+        #     np.conj(mvvp),
+        #     optimize=True,
+        # )
 
-        # Set up parameters for wing with G != 0, G' = 0.
-        mvvp_local = np.zeros_like(mvvp)
-        mvvp_local[..., 0] = mvvp[..., 0] # mvvp -> (v, V, G = 0)
+        # # Set up parameters for wing with G != 0, G' = 0.
+        # mvvp_local = np.zeros_like(mvvp)
+        # mvvp_local[..., 0] = mvvp[..., 0] # mvvp -> (v, V, G = 0)
 
-        epsinv_n0_0 = deepcopy(epsinv)
-        epsinv_n0_0[0, :] = 0.0
+        # epsinv_n0_0 = deepcopy(epsinv)
+        # epsinv_n0_0[0, :] = 0.0
 
-        wing += np.einsum(
-            einstr,
-            mccp,
-            epsinv_n0_0,
-            vqg,
-            np.conj(mvvp_local),
-            optimize=True,
-        )
+        # wing += np.einsum(
+        #     einstr,
+        #     mccp,
+        #     epsinv_n0_0,
+        #     vqg,
+        #     np.conj(mvvp_local),
+        #     optimize=True,
+        # )
 
-        if q_idx == self.qpts.index_q0:
-            wing *= 0
+        # if q_idx == self.qpts.index_q0:
+        #     wing *= 0
 
-        else:
-            oneoverq = self.vcoul.oneoverq[q_idx]
-            qval = np.sqrt(
-                self.l_gq[q_idx].cryst_to_norm2(self.qpts.cryst[q_idx])
-            )
+        # else:
+        #     oneoverq = self.vcoul.oneoverq[q_idx]
+        #     qval = np.sqrt(
+        #         self.l_gq[q_idx].cryst_to_norm2(self.qpts.cryst[q_idx])
+        #     )
 
-            # wing *= oneoverq * qval / (8 * np.pi)
-            wing *= qval
+        #     # wing *= oneoverq * qval / (8 * np.pi)
+        #     wing *= qval
 
-        return wing #* self.kernel_factor
+        return 1 # wing #* self.kernel_factor
     
     # Define helper method to calculate the body of the direct kernel matrix.
     # We need (G != 0, G' != 0) for the body.
@@ -280,24 +280,24 @@ class KernelMtxEl:
             mvvp,   # Charge matrix element for conduction bands, k = k_idx, k' = kp_idx            
     ):
 
-        epsinv_n0_n0 = deepcopy(epsinv)
-        epsinv_n0_n0[0, :] = 0.0
-        epsinv_n0_n0[:, 0] = 0.0
+        # epsinv_n0_n0 = deepcopy(epsinv)
+        # epsinv_n0_n0[0, :] = 0.0
+        # epsinv_n0_n0[:, 0] = 0.0
 
-        # Shape required for the result is (v,V,c,C).
-        # mccp -> (c, C, g), epsinv -> (g != 0, G != 0), vqg -> G, mvvp -> (v, V, G)
-        einstr = 'cCg, gG, G, vVG -> vVcC'
+        # # Shape required for the result is (v,V,c,C).
+        # # mccp -> (c, C, g), epsinv -> (g != 0, G != 0), vqg -> G, mvvp -> (v, V, G)
+        # einstr = 'cCg, gG, G, vVG -> vVcC'
 
-        body = np.einsum(
-            einstr,
-            mccp,
-            epsinv_n0_n0,
-            vqg,
-            np.conj(mvvp),
-            optimize=True,
-        )
+        # body = np.einsum(
+        #     einstr,
+        #     mccp,
+        #     epsinv_n0_n0,
+        #     vqg,
+        #     np.conj(mvvp),
+        #     optimize=True,
+        # )
 
-        return body #* self.kernel_factor
+        return 1 # body #* self.kernel_factor
 
     # Define helper method to calculate the exchange kernel matrix.
     def calc_exc(
