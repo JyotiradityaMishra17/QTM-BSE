@@ -48,7 +48,6 @@ class ChargeMtxEL:
                 GkSpace(
                     gwfn=self.gspace,
                     k_cryst=self.qpts.cryst[i_q],
-                    # ecutwfn=self.epsinp.epsilon_cutoff * RYDBERG_HART,
                 )
             )
 
