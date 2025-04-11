@@ -247,6 +247,7 @@ class ChargeMtxEL:
                         band_idxp_con - con_idx_beg,
                     ] = fft_prod / grid_vol
             
+            
             # Sort the matrix elements to match BGW.
             sort_order = sort_cryst_like_BGW(
                 self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
