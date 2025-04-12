@@ -48,6 +48,7 @@ class ChargeMtxEL:
                 GkSpace(
                     gwfn=self.gspace,
                     k_cryst=self.qpts.cryst[i_q],
+                    ecutwfn=self.epsinp.epsilon_cutoff * RYDBERG_HART,
                 )
             )
 
@@ -249,11 +250,11 @@ class ChargeMtxEL:
             
             
             # Sort the matrix elements to match BGW.
-            sort_order = sort_cryst_like_BGW(
-                self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
-            )
+            # sort_order = sort_cryst_like_BGW(
+            #     self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
+            # )
 
-            M = M[:, :, sort_order]
+            # M = M[:, :, sort_order]
             
             if ret_q:
                 return M, q_idx
@@ -384,11 +385,11 @@ class ChargeMtxEL:
                     ] = fft_prod / grid_vol
             
             # Sort the matrix elements to match BGW.
-            sort_order = sort_cryst_like_BGW(
-                self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
-            )
+            # sort_order = sort_cryst_like_BGW(
+            #     self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
+            # )
 
-            M = M[:, :, sort_order]
+            # M = M[:, :, sort_order]
 
             if ret_q:
                 return M, q_idx
@@ -495,11 +496,11 @@ class ChargeMtxEL:
                 ] = fft_prod / grid_vol
 
         # Sort the matrix elements to match BGW.
-        sort_order = sort_cryst_like_BGW(
-            self.l_gq[0].gk_cryst, self.l_gq[0].gk_norm2
-        )
+        # sort_order = sort_cryst_like_BGW(
+        #     self.l_gq[0].gk_cryst, self.l_gq[0].gk_norm2
+        # )
 
-        M = M[:, :, sort_order]
+        # M = M[:, :, sort_order]
 
         return M
     

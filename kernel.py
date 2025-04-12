@@ -1,3 +1,9 @@
+### IDEA TO FIX EPSINV vs NORMAL INDEXING:
+### Create two mccp, mvvp, mvc - one for normal large gq space and the other for epsinv gq space.
+### Calculate the head, wings and exchange using the epsinv gq space. For the unscreened part
+### use the portion of the large gq space that is not in the epsinv gq space.
+
+
 import numpy as np
 from typing import List, NamedTuple
 from copy import deepcopy
@@ -74,8 +80,18 @@ class KernelMtxEl:
                 GkSpace(
                     gwfn=self.gspace,
                     k_cryst=self.qpts.cryst[i_q],
+                    ecutwfn=self.epsinp.epsilon_cutoff * RYDBERG_HART,
                 )
             )
+        
+        # Store the index of G = 0 for each q-point.
+        idxG0 = np.zeros(self.qpts.numq, dtype=int)
+        for q_idx in range(self.qpts.numq):
+            sort_order = sort_cryst_like_BGW(
+                self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
+            )
+            idxG0[q_idx] = sort_order[0]
+        self.idxG0 = idxG0    
 
         # NOTE: epsinv lives in a reduced gspace, due to the epsinp cutoff.
         self.l_gq_epsinv: List[GkSpace] = []
@@ -98,7 +114,7 @@ class KernelMtxEl:
             )
 
             self.l_epsinv.append(
-                reorder_2d_matrix_sorted_gvecs(epsinv, sort_order)
+                reorder_2d_matrix_sorted_gvecs(epsinv, np.argsort(sort_order))
             )
             
         self.q0val = q0val
@@ -186,6 +202,7 @@ class KernelMtxEl:
     # Define helper method to calculate the head of the direct kernel matrix.
     def calc_head(
             self,
+            idx_G0,
             vqg,    # Value of v(q + G) for q
             epsinv, # Inverse of epsilon matrix for q
             mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
@@ -200,11 +217,11 @@ class KernelMtxEl:
 
         mccp_head = deepcopy(mccp) # mccp -> (c, C, g)
         mccp_head = mccp_head[..., :gsize] # mccp -> (c, C, g)
-        mccp_head = mccp_head[..., 0] # mccp -> (c, C, g = 0)
+        mccp_head = mccp_head[..., idx_G0] # mccp -> (c, C, g = 0)
 
         mvvp_head = deepcopy(mvvp) # mvvp -> (v, V, G)
         mvvp_head = mvvp_head[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_head = mvvp_head[..., 0] # mvvp -> (v, V, G = 0)
+        mvvp_head = mvvp_head[..., idx_G0] # mvvp -> (v, V, G = 0)
 
         # Head = sum(g=0, G=0)[conj(mvvp(G)) * W(g, G) * mccp(g)]
         einstr = "vV, cC -> cCvV"
@@ -224,6 +241,7 @@ class KernelMtxEl:
     # Define helper method to calculate the wings of the direct kernel matrix.
     def calc_wings(
             self,
+            idx_G0,
             q_idx,  # Index of q-point
             vqg,    # Value of v(q + G) for q
             epsinv, # Inverse of epsilon matrix for q
@@ -238,19 +256,19 @@ class KernelMtxEl:
         # Set up parameters for wing with G = 0, G' != 0 -> wing prime.         
         mccp_wingp = deepcopy(mccp) # mccp -> (c, C, g)
         mccp_wingp = mccp_wingp[..., :gsize] # mccp -> (c, C, g)
-        mccp_wingp = mccp_wingp[..., 0] # mccp -> (c, C, g = 0)
+        mccp_wingp = mccp_wingp[..., idx_G0] # mccp -> (c, C, g = 0)
 
         mvvp_wingp = deepcopy(mvvp) # mvvp -> (v, V, G)
         mvvp_wingp = mvvp_wingp[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_wingp[..., 0] = 0 # mvvp -> (v, V, G != 0)
+        mvvp_wingp[..., idx_G0] = 0 # mvvp -> (v, V, G != 0)
 
         vqg_wingp = deepcopy(vqg) # vqg -> G
         vqg_wingp = vqg_wingp[:gsize] # vqg -> G
-        vqg_wingp[0] = 0 # vqg -> G != 0
+        vqg_wingp[idx_G0] = 0 # vqg -> G != 0
 
         epsinv_wingp = deepcopy(epsinv) # epsinv -> (g, G)
-        epsinv_wingp = epsinv_wingp[0, :] # epsinv -> (g = 0, G)
-        epsinv_wingp[0] = 0 # epsinv -> (g = 0, G != 0)
+        epsinv_wingp = epsinv_wingp[idx_G0, :] # epsinv -> (g = 0, G)
+        epsinv_wingp[idx_G0] = 0 # epsinv -> (g = 0, G != 0)
 
         # wing prime = sum(g=0, G != 0)[conj(mvvp(G)) * espinv(g, G) * vqg(G) * mccp(g)]
         einstr_wingp = "vVG, G, G, cC -> cCvV"
@@ -273,19 +291,19 @@ class KernelMtxEl:
         # Set up parameters for wing with G != 0, G' = 0. -> wing
         mccp_wing = deepcopy(mccp) # mccp -> (c, C, g)
         mccp_wing = mccp_wing[..., :gsize] # mccp -> (c, C, g)
-        mccp_wing[..., 0] = 0 # mccp -> (c, C, g != 0)
+        mccp_wing[..., idx_G0] = 0 # mccp -> (c, C, g != 0)
 
         mvvp_wing = deepcopy(mvvp) # mvvp -> (v, V, G)
         mvvp_wing = mvvp_wing[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_wing = mvvp_wing[..., 0] # mvvp -> (v, V, G = 0)
+        mvvp_wing = mvvp_wing[..., idx_G0] # mvvp -> (v, V, G = 0)
 
         vqg_wing = deepcopy(vqg) # vqg -> G
         vqg_wing = vqg_wing[:gsize] # vqg -> G
-        vqg_wing = vqg_wing[0] # vqg -> G = 0
+        vqg_wing = vqg_wing[idx_G0] # vqg -> G = 0
 
         epsinv_wing = deepcopy(epsinv) # epsinv -> (g, G)
-        epsinv_wing = epsinv_wing[:, 0] # epsinv -> (g, G = 0)
-        epsinv_wing[0] = 0 # epsinv -> (g != 0, G = 0)
+        epsinv_wing = epsinv_wing[:, idx_G0] # epsinv -> (g, G = 0)
+        epsinv_wing[idx_G0] = 0 # epsinv -> (g != 0, G = 0)
 
         # wing = sum(g != 0, G = 0)[conj(mvvp(G)) * espinv(g, G) * vqg(G) * mccp(g)]
         einstr_wing = "vV, g, cCg -> cCvV"
@@ -318,6 +336,7 @@ class KernelMtxEl:
     # Define helper method to calculate the body of the direct kernel matrix.
     def calc_body(
             self,
+            idx_G0,
             vqg,    # Value of v(q + G) for q
             epsinv, # Inverse of epsilon matrix for q
             mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
@@ -330,18 +349,18 @@ class KernelMtxEl:
         # Set up parameters for body with G != 0, G' != 0.
         mccp_body = deepcopy(mccp) # mccp -> (c, C, g)
         mccp_body = mccp_body[..., :gsize] # mccp -> (c, C, g)
-        mccp_body[..., 0] = 0 # mccp -> (c, C, g != 0)
+        mccp_body[..., idx_G0] = 0 # mccp -> (c, C, g != 0)
 
         mvvp_body = deepcopy(mvvp) # mvvp -> (v, V, G)
         mvvp_body = mvvp_body[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_body[..., 0] = 0 # mvvp -> (v, V, G != 0)
+        mvvp_body[..., idx_G0] = 0 # mvvp -> (v, V, G != 0)
 
         vqg_body = deepcopy(vqg) # vqg -> G
         vqg_body = vqg_body[:gsize] # vqg -> G
-        vqg_body[0] = 0
+        vqg_body[idx_G0] = 0
 
         epsinv_body = deepcopy(epsinv) # epsinv -> (g, G)
-        epsinv_body[0, 0] = 0 # epsinv -> (g != 0, G != 0)
+        epsinv_body[idx_G0, idx_G0] = 0 # epsinv -> (g != 0, G != 0)
 
         # body = sum(g != 0, G != 0)[conj(mvvp(G)) * espinv(g, G) * vqg(G) * mccp(g)]
         einstr_body = "vVG, gG, G, cCg -> cCvV"
@@ -423,10 +442,10 @@ class KernelMtxEl:
         # --- Calculate the value of v(q + G) for q = 0 ---
         norm_array = self.l_gq[0].gk_norm2
         vq0g = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
-        sort_order_0 = sort_cryst_like_BGW(
-            self.l_gq[0].gk_cryst, norm_array
-        )
-        vq0g = vq0g[sort_order_0]
+        # sort_order_0 = sort_cryst_like_BGW(
+        #     self.l_gq[0].gk_cryst, norm_array
+        # )
+        # vq0g = vq0g[sort_order_0]
 
         # If using parallel, work with MPI; otherwise run serially.
         if self.in_parallel and parallel:
@@ -473,22 +492,26 @@ class KernelMtxEl:
                 # Calculate v(q+G) for this q-index.
                 norm_array = self.l_gq[q_idx].gk_norm2
                 vqg = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
-                sort_order = sort_cryst_like_BGW(
-                    self.l_gq[q_idx].gk_cryst, norm_array
-                )
-                vqg = vqg[sort_order]
+                # sort_order = sort_cryst_like_BGW(
+                #     self.l_gq[q_idx].gk_cryst, norm_array
+                # )
+                # vqg = vqg[sort_order]
+
+                idx_G0 = self.idxG0[q_idx]
 
                 # epsinv was already sorted.
                 epsinv = self.l_epsinv[q_idx]
 
                 # Calculate the different components of the kernel.
                 head = self.calc_head(
+                    idx_G0=idx_G0,
                     vqg=vqg,
                     epsinv=epsinv,
                     mccp=mccp,
                     mvvp=mvvp,
                 )
                 wings = self.calc_wings(
+                    idx_G0=idx_G0,
                     q_idx=q_idx,
                     vqg=vqg,
                     epsinv=epsinv,
@@ -496,6 +519,7 @@ class KernelMtxEl:
                     mvvp=mvvp,
                 )
                 body = self.calc_body(
+                    idx_G0=idx_G0,
                     vqg=vqg,
                     epsinv=epsinv,
                     mccp=mccp,
@@ -618,20 +642,24 @@ class KernelMtxEl:
 
                     norm_array = self.l_gq[q_idx].gk_norm2
                     vqg = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
-                    sort_order = sort_cryst_like_BGW(
-                        self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
-                    )
-                    vqg = vqg[sort_order]
+                    # sort_order = sort_cryst_like_BGW(
+                    #     self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
+                    # )
+                    # vqg = vqg[sort_order]
+
+                    idx_G0 = self.idxG0[q_idx]
 
                     epsinv = self.l_epsinv[q_idx]
 
                     head = self.calc_head(
+                        idx_G0=idx_G0,
                         vqg=vqg,
                         epsinv=epsinv,
                         mccp=mccp,
                         mvvp=mvvp,
                     )
                     wings = self.calc_wings(
+                        idx_G0=idx_G0,
                         q_idx=q_idx,
                         vqg=vqg,
                         epsinv=epsinv,
@@ -639,6 +667,7 @@ class KernelMtxEl:
                         mvvp=mvvp,
                     )
                     body = self.calc_body(
+                        idx_G0=idx_G0,
                         vqg=vqg,
                         epsinv=epsinv,
                         mccp=mccp,
