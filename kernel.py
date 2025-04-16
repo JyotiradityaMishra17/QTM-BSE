@@ -94,17 +94,23 @@ class KernelMtxEl:
                 )
             )
 
-        # NOTE: sorting is unclear
+        # NOTE: sorting needs to be corrected according to BerkeleyGW.
         self.l_epsinv = []
         for i_q in range(self.qpts.numq):
             epsinv = self.l_epsmats[i_q]
-
+                
             sort_order = sort_cryst_like_BGW(
                 self.l_gq_epsinv[i_q].gk_cryst, self.l_gq_epsinv[i_q].gk_norm2
             )
+                        
+            # As given in the sigma code, I need to use another sorting.
+            sort_order_QTM = np.argsort(sort_order)
+
+            # But my matrices, vcoul, etc. are sorted according to BGW.
+            sort_order_BGW = sort_order_QTM[sort_order]
 
             self.l_epsinv.append(
-                reorder_2d_matrix_sorted_gvecs(epsinv, sort_order)
+                reorder_2d_matrix_sorted_gvecs(epsinv, sort_order_BGW)
             )
             
         self.q0val = q0val
