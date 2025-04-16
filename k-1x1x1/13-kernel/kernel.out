@@ -1,6 +1,6 @@
 
  BerkeleyGW version 4.0
- BSE/Kernel code, Complex version, run on 11-Apr-2025 at 11:11:21 +0530
+ BSE/Kernel code, Complex version, run on 15-Apr-2025 at 12:03:14 +0530
 
                                                                  ..o.          
                                                                 .oxxo.         
@@ -97,14 +97,14 @@
  - Number of MPI ranks per block: 1
  - Number of transitions per MPI rank: 1
 
- Memory available: 23125.6 MB per PE
+ Memory available: 25538.2 MB per PE
  Memory required for execution: .0 MB per PE
  Extra memory required for vcoul: .0 MB per PE
 
- Started reading wavefunctions (WFN_co) with 2 state(s) at 11:11:21.
- [ 11:11:21 |   0% ] state 1 / 2.
- [ 11:11:21 |  50% ] state 2 / 2.
- Finished reading wavefunctions (WFN_co) at 11:11:21.
+ Started reading wavefunctions (WFN_co) with 2 state(s) at 12:03:14.
+ [ 12:03:14 |   0% ] state 1 / 2.
+ [ 12:03:14 |  50% ] state 2 / 2.
+ Finished reading wavefunctions (WFN_co) at 12:03:14.
  Elapsed time: 0 s.
 
 
@@ -138,8 +138,8 @@
  Calculating Coulomb potential.
  Note: for G=0: setting q0 =  0.001000  0.001000  0.001000
 
- Started calculation of matrix elements with 1 blocked transition(s) at 11:11:21.
- [ 11:11:21 |   0% ] blocked transition 1 / 1.
+ Started calculation of matrix elements with 1 blocked transition(s) at 12:03:14.
+ [ 12:03:14 |   0% ] blocked transition 1 / 1.
  mccp(           1 ,           1 ,           1 ,           1 ) =               (0.99999999999999967,0.0000000000000000)
  mccp(           2 ,           1 ,           1 ,           1 ) =        (-0.10690111357630139,4.95793896337569277E-007)
  mccp(           3 ,           1 ,           1 ,           1 ) =         (0.10718661993812255,9.39399155169749174E-007)
@@ -444,34 +444,7 @@
  mvpcp(          25 ,           1 ,           1 ,           1 ) =  (-6.10265860146784467E-003,-2.77846506724501374E-003)
  mvpcp(          26 ,           1 ,           1 ,           1 ) =  (-4.54589978298248956E-003,-2.06974428808929427E-003)
  mvpcp(          27 ,           1 ,           1 ,           1 ) =  (-6.44347751052629699E-003,-2.93335171463830497E-003)
- vcoul(           1 ) =    0.0000000000000000     
- vcoul(           2 ) =   0.87845466217906820     
- vcoul(           3 ) =   0.87845466217906831     
- vcoul(           4 ) =   0.87845466217906831     
- vcoul(           5 ) =   0.87845466217906831     
- vcoul(           6 ) =   0.87845466217906831     
- vcoul(           7 ) =   0.87845466217906831     
- vcoul(           8 ) =   0.87845466217906831     
- vcoul(           9 ) =   0.87845466217906820     
- vcoul(          10 ) =   0.65884099663430118     
- vcoul(          11 ) =   0.65884099663430118     
- vcoul(          12 ) =   0.65884099663430118     
- vcoul(          13 ) =   0.65884099663430118     
- vcoul(          14 ) =   0.65884099663430118     
- vcoul(          15 ) =   0.65884099663430118     
- vcoul(          16 ) =   0.32942049831715059     
- vcoul(          17 ) =   0.32942049831715059     
- vcoul(          18 ) =   0.32942049831715059     
- vcoul(          19 ) =   0.32942049831715070     
- vcoul(          20 ) =   0.32942049831715070     
- vcoul(          21 ) =   0.32942049831715070     
- vcoul(          22 ) =   0.32942049831715070     
- vcoul(          23 ) =   0.32942049831715070     
- vcoul(          24 ) =   0.32942049831715070     
- vcoul(          25 ) =   0.32942049831715059     
- vcoul(          26 ) =   0.32942049831715059     
- vcoul(          27 ) =   0.32942049831715059     
- Finished calculation of matrix elements at 11:11:21.
+ Finished calculation of matrix elements at 12:03:14.
  Elapsed time: 0 s.
 
  Expected size of the BSE matrices:
@@ -506,27 +479,27 @@
 
                              CPU (s)        WALL (s)          #
 
- INPUT:          (min.)        0.016           0.002          1
-                 (PE 0)        0.016           0.002
-                 (max.)        0.016           0.002
- EPSCOPY:        (min.)        0.059           0.003          1
-                 (PE 0)        0.059           0.003
-                 (max.)        0.059           0.003
+ INPUT:          (min.)        0.001           0.002          1
+                 (PE 0)        0.001           0.002
+                 (max.)        0.001           0.002
+ EPSCOPY:        (min.)        0.003           0.003          1
+                 (PE 0)        0.003           0.003
+                 (max.)        0.003           0.003
  GENWF:          (min.)        0.000           0.000          1
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
  EXCWF:          (min.)        0.000           0.000          0
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL:          (min.)        0.088           0.006          1
-                 (PE 0)        0.088           0.006
-                 (max.)        0.088           0.006
- FULLBZ:         (min.)        0.000           0.001          2
-                 (PE 0)        0.000           0.001
-                 (max.)        0.000           0.001
- BSEWRITE:       (min.)        0.082           0.007          1
-                 (PE 0)        0.082           0.007
-                 (max.)        0.082           0.007
+ MTXEL:          (min.)        0.078           0.005          1
+                 (PE 0)        0.078           0.005
+                 (max.)        0.078           0.005
+ FULLBZ:         (min.)        0.000           0.000          2
+                 (PE 0)        0.000           0.000
+                 (max.)        0.000           0.000
+ BSEWRITE:       (min.)        0.064           0.004          1
+                 (PE 0)        0.064           0.004
+                 (max.)        0.064           0.004
  MTXEL Setup:    (min.)        0.000           0.000          2
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
@@ -539,9 +512,9 @@
  MTXEL W-Sum:    (min.)        0.000           0.000         16
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL FFT Dir:  (min.)        0.025           0.003          1
-                 (PE 0)        0.025           0.003
-                 (max.)        0.025           0.003
+ MTXEL FFT Dir:  (min.)        0.030           0.002          1
+                 (PE 0)        0.030           0.002
+                 (max.)        0.030           0.002
  MTXEL High G:   (min.)        0.000           0.000          1
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
@@ -569,18 +542,18 @@
  MTXEL COMM:     (min.)        0.000           0.000          1
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- BSEWRITE COMM:  (min.)        0.080           0.005          1
-                 (PE 0)        0.080           0.005
-                 (max.)        0.080           0.005
- BSEWRITE I/O:   (min.)        0.002           0.002          1
-                 (PE 0)        0.002           0.002
-                 (max.)        0.002           0.002
- MTXEL FFT CC:   (min.)        0.010           0.002          1
-                 (PE 0)        0.010           0.002
-                 (max.)        0.010           0.002
- MTXEL FFT VV:   (min.)        0.015           0.001          1
-                 (PE 0)        0.015           0.001
-                 (max.)        0.015           0.001
+ BSEWRITE COMM:  (min.)        0.032           0.002          1
+                 (PE 0)        0.032           0.002
+                 (max.)        0.032           0.002
+ BSEWRITE I/O:   (min.)        0.032           0.002          1
+                 (PE 0)        0.032           0.002
+                 (max.)        0.032           0.002
+ MTXEL FFT CC:   (min.)        0.014           0.001          1
+                 (PE 0)        0.014           0.001
+                 (max.)        0.014           0.001
+ MTXEL FFT VV:   (min.)        0.016           0.001          1
+                 (PE 0)        0.016           0.001
+                 (max.)        0.016           0.001
  MTXEL FIND:     (min.)        0.000           0.000          1
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
@@ -594,7 +567,7 @@
                  (PE 0)        0.032           0.002
                  (max.)        0.032           0.002
 
- TOTAL:          (min.)        0.255           0.019
-                 (PE 0)        0.255           0.019
-                 (max.)        0.255           0.019
+ TOTAL:          (min.)        0.228           0.021
+                 (PE 0)        0.228           0.021
+                 (max.)        0.228           0.021
 
