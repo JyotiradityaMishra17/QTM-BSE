@@ -98,6 +98,7 @@ class KernelMtxEl:
         self.l_epsinv = []
         for i_q in range(self.qpts.numq):
             epsinv = self.l_epsmats[i_q]
+            epsinv = np.conjugate(epsinv)
                 
             sort_order = sort_cryst_like_BGW(
                 self.l_gq_epsinv[i_q].gk_cryst, self.l_gq_epsinv[i_q].gk_norm2
