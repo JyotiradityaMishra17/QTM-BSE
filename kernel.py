@@ -432,10 +432,11 @@ class KernelMtxEl:
         numk = self.kpts.numk
         num_val = self.charge_mtxel.val_num
         num_con = self.charge_mtxel.con_num
+        norm2_q0val = np.dot(np.conjugate(self.q0val), self.q0val)
 
         # --- Calculate the value of v(q + G) for q = 0 ---
         norm_array = self.l_gq[0].gk_norm2
-        vq0g = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
+        vq0g = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
         sort_order_0 = sort_cryst_like_BGW(
             self.l_gq[0].gk_cryst, norm_array
         )
@@ -485,7 +486,7 @@ class KernelMtxEl:
 
                 # Calculate v(q+G) for this q-index.
                 norm_array = self.l_gq[q_idx].gk_norm2
-                vqg = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
+                vqg = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
                 sort_order = sort_cryst_like_BGW(
                     self.l_gq[q_idx].gk_cryst, norm_array
                 )
@@ -630,7 +631,7 @@ class KernelMtxEl:
                     )
 
                     norm_array = self.l_gq[q_idx].gk_norm2
-                    vqg = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
+                    vqg = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
                     sort_order = sort_cryst_like_BGW(
                         self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
                     )
