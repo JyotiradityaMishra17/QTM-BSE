@@ -72,7 +72,7 @@ class ChargeMtxEL:
         # i.e., n - n -> 0, n - 0 -> n.
 
         list_val_idx = np.where(self.occ == 1) 
-        self.val_num_max = max(list_val_idx[1]) + 1
+        self.val_num_max = max(list_val_idx[1])
         
         k_idx_val, band_idx_val = list_val_idx
         band_idx_val = self.val_num_max - band_idx_val
@@ -82,13 +82,13 @@ class ChargeMtxEL:
         self.val_idx_beg = min(self.list_val_idx[1])
 
         if num_bands_val is not None:
-            if num_bands_val > self.val_num_max:
+            if num_bands_val > self.val_num_max + 1:
                 raise ValueError(
                     f"num_bands_val {num_bands_val} exceeds max {self.val_num_max}."
                 )
             self.val_num = num_bands_val
         else:
-            self.val_num = self.val_num_max
+            self.val_num = self.val_num_max + 1
 
         if num_bands_con is not None:
             if num_bands_con > self.con_num_max:
