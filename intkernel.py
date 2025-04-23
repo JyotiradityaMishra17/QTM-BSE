@@ -71,6 +71,8 @@ def closestpts(fine_kpt, coarse_kpts, periodic=True):
 
 
 class InterpMtxEl:
+    TOLERANCE = 1e-5
+
     def __init__(
         self,
         crystal: Crystal,
@@ -482,13 +484,14 @@ class InterpMtxEl:
 
         return energy_fine
     
-    def interp_kernel(self, head_mtx: np.ndarray, wings_mtx: np.ndarray, body_mtx: np.ndarray, exc_mtx: np.ndarray):
+    def interp_kernel(self, head_mtx: np.ndarray, wings_mtx: np.ndarray, body_mtx: np.ndarray, exc_mtx: np.ndarray, parallel: bool = True):
         numk_fine = self.fine_kpts.numk
         numk_coarse = self.coarse_kpts.numk
         numq = self.kernel.qpts.numq
 
         list_k_fine = self.fine_kpts.cryst
         list_k_coarse = self.coarse_kpts.cryst
+        list_q = self.kernel.qpts.cryst
 
         num_val_fine = self.val_num_fine
         num_con_fine = self.con_num_fine
@@ -497,10 +500,128 @@ class InterpMtxEl:
             closest_idx_ikf = self.l_closest_idx[ikf]
             weights_ikf = self.l_weights[ikf]
 
+            coeff_val = []
+            for ikc in closest_idx_ikf:
+                coeff = self.coeff_mtxel(ikf, ikc, "val")
+                coeff_val.append(coeff)
+
+            coeff_con = []
+            for ikc in closest_idx_ikf:
+                coeff = self.coeff_mtxel(ikf, ikc, "con")
+                coeff_con.append(coeff)
+
             closest_idx_ikpf = self.l_closest_idx[ikpf]
             weights_ikpf = self.l_weights[ikpf]
 
+            coeffp_val = []
+            for ikpc in closest_idx_ikpf:
+                coeff = self.coeff_mtxel(ikpf, ikpc, "val")
+                coeffp_val.append(coeff)
+
+            coeffp_con = []
+            for ikpc in closest_idx_ikpf:
+                coeff = self.coeff_mtxel(ikpf, ikpc, "con")
+                coeffp_con.append(coeff)
+
+            fine_kernel = np.zeros((num_con_fine, num_con_fine, num_val_fine, num_val_fine), dtype=complex)    
+
+            for idx_ikc, ikc in enumerate(closest_idx_ikf):
+                weight_ikc = weights_ikf[idx_ikc]
+                if weight_ikc == 0:
+                    continue
+
+                coeff_val_ikc = coeff_val[idx_ikc] # (v, a)
+                coeff_con_ikc = coeff_con[idx_ikc] # (c, b)
+                kc_pt = list_k_coarse[ikc]
+
+
+                for idx_ikpc, ikpc in enumerate(closest_idx_ikpf):
+                    weight_ikpc = weights_ikpf[idx_ikpc]
+                    if weight_ikpc == 0:
+                        continue
+
+                    coeffp_val_ikpc = coeffp_val[idx_ikpc] # (V, A)
+                    coeffp_con_ikpc = coeffp_con[idx_ikpc] # (C, B)
+                    kpc_pt = list_k_coarse[ikpc]
+
+                    umklapp = -np.floor(np.around(kc_pt - kpc_pt, 5))
+                    q_target = kc_pt - kpc_pt + umklapp
+
+                    iq = np.nonzero(np.all(np.isclose(list_q, q_target, atol=self.TOLERANCE), axis=1))[0][0]
+                    idx_g0 = self.kernel.l_g0[iq]
+
+                    epsinv = self.kernel.l_epsinv[iq]
+                    epsinv = epsinv[idx_g0, idx_g0]
+
+                    vqg = self.kernel.l_vqg[iq]
+                    vqg = vqg[idx_g0]
+                    oneoverq = np.sqrt(vqg)
+
+                    # Interpolate the kernel matrix elements. Shape of each matrix is (b, B, a, A)
+                    einstr = "cb, va, CB, VA, bBaA -> cCvV"
+                    
+                    head = head_mtx[ikc, ikpc]
+                    head = np.einsum(einstr, coeff_con_ikc, np.conj(coeff_val_ikc), np.conj(coeffp_con_ikpc), coeffp_val_ikpc, head, optimize=True)
+                    head = head * weight_ikc * weight_ikpc * vqg * epsinv
+
+                    wings = wings_mtx[ikc, ikpc]
+                    wings = np.einsum(einstr, coeff_con_ikc, np.conj(coeff_val_ikc), np.conj(coeffp_con_ikpc), coeffp_val_ikpc, wings, optimize=True)
+                    wings = wings * weight_ikc * weight_ikpc * oneoverq
+
+                    body = body_mtx[ikc, ikpc]
+                    body = np.einsum(einstr, coeff_con_ikc, np.conj(coeff_val_ikc), np.conj(coeffp_con_ikpc), coeffp_val_ikpc, body, optimize=True)
+                    body = body * weight_ikc * weight_ikpc
+
+                    exc = exc_mtx[ikc, ikpc]
+                    exc = np.einsum(einstr, coeff_con_ikc, np.conj(coeff_val_ikc), np.conj(coeffp_con_ikpc), coeffp_val_ikpc, exc, optimize=True)
+                    exc = -2 * exc * weight_ikc * weight_ikpc # SINGLET
+
+                    fine_kernel += head + wings + body + exc
+
+            return fine_kernel
+        
+        if not (self.in_parallel and parallel):
+            fine_kernel = np.zeros((numk_fine, numk_fine, num_con_fine, num_con_fine, num_val_fine, num_val_fine), dtype=complex)
+            for ikf in range(numk_fine):
+                for ikpf in range(numk_fine):
+                    fine_kernel[ikf, ikpf] = calc_interp_kernel(ikf, ikpf)
+
+        else:
+            proc_rank = self.comm.Get_rank()
             
+            if proc_rank == 0:
+                idx_kf, idx_kpf = np.meshgrid(np.arange(numk_fine), np.arange(numk_fine), indexing="ij")
+
+                full_pairs = np.stack((idx_kf.flatten(), idx_kpf.flatten()), axis=1)
+                chunks = np.array_split(full_pairs, self.comm.Get_size())
+
+            else:
+                chunks = None
+
+            local_pairs = self.comm.scatter(chunks, root=0)
+            local_results = []
+
+            for ikf, ikpf in local_pairs:
+                fine_kernel = calc_interp_kernel(ikf, ikpf)
+                local_results.append([ikf, ikpf, fine_kernel])
+
+            if proc_rank != 0:
+                self.comm.send(local_results, dest=0, tag=77)
+                fine_kernel = self.comm.bcast(None, root=0)
+            else:
+                fine_kernel = np.zeros((numk_fine, numk_fine, num_con_fine, num_con_fine, num_val_fine, num_val_fine), dtype=complex)
+
+                for ikf, ikpf, fine_kernel_ikf_ikpf in local_results:
+                    fine_kernel[ikf, ikpf] = fine_kernel_ikf_ikpf
+
+                for source in range(1, self.comm.Get_size()):
+                    remote_results = self.comm.recv(source=source, tag=77)
+                    for ikf, ikpf, fine_kernel_ikf_ikpf in remote_results:
+                        fine_kernel[ikf, ikpf] = fine_kernel_ikf_ikpf
+
+                fine_kernel = self.comm.bcast(fine_kernel, root=0)
+
+        return fine_kernel          
 
 
 
