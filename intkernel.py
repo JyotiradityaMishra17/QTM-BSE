@@ -579,7 +579,8 @@ class InterpMtxEl:
                     fine_kernel += head + wings + body + exc
 
             return fine_kernel
-        
+
+
         if not (self.in_parallel and parallel):
             fine_kernel = np.zeros((numk_fine, numk_fine, num_con_fine, num_con_fine, num_val_fine, num_val_fine), dtype=complex)
             for ikf in range(numk_fine):

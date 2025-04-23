@@ -1,5 +1,5 @@
-number_val_bands 1
-number_cond_bands 1
+number_val_bands 3
+number_cond_bands 2
 
 no_symmetries_coarse_grid
 

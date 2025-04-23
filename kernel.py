@@ -341,7 +341,7 @@ class KernelMtxEl:
                 local_blocks.append((ik, ikp, exc, head, wings, body))
                 
                 if ik != ikp:
-                    local_blocks.append((ikp, ik, exc.conjugate(), head.conjugate(), wings.conjugate(), body.conjugate()))
+                    local_blocks.append((ikp, ik, np.conjugate(exc.transpose(1, 0, 3, 2)), np.conjugate(head.transpose(1, 0, 3, 2)), np.conjugate(wings.transpose(1, 0, 3, 2)), np.conjugate(body.transpose(1, 0, 3, 2))))
 
             if proc_rank != 0:
                 self.comm.send(local_blocks, dest=0, tag=77)
@@ -408,11 +408,11 @@ class KernelMtxEl:
                     body_mtx[ik_idx, ikp_idx] = body
 
                     if ik_idx != ikp_idx:
-                        exc_mtx[ikp_idx, ik_idx] = exc.conjugate()
-                        head_mtx[ikp_idx, ik_idx] = head.conjugate()
+                        exc_mtx[ikp_idx, ik_idx] = np.conjugate(exc.transpose(1, 0, 3, 2))
+                        head_mtx[ikp_idx, ik_idx] = np.conjugate(head.transpose(1, 0, 3, 2))
 
-                        wings_mtx[ikp_idx, ik_idx] = wings.conjugate()
-                        body_mtx[ikp_idx, ik_idx] = body.conjugate()
+                        wings_mtx[ikp_idx, ik_idx] = np.conjugate(wings.transpose(1, 0, 3, 2))
+                        body_mtx[ikp_idx, ik_idx] = np.conjugate(body.transpose(1, 0, 3, 2))
 
             return {"exc": exc_mtx, "head": head_mtx, "wings": wings_mtx, "body": body_mtx}
                 
