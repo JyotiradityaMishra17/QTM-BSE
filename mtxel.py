@@ -127,6 +127,104 @@ class ChargeMtxEL:
 
         return mtxel
     
+    def matrix_element(self,
+                    mode: str,
+                    k_idx: int,
+                    kp_idx: int = None,
+                    ret_q: bool = False):
+        
+        assert mode in ("mccp", "mvvp", "mvc")
+
+        # --- find which q‐indices to do ---
+        if mode == "mvc":
+            kp_idx = k_idx
+            q_indices = [0]
+        else:
+            k_pt, kp_pt = self.kpts.cryst[k_idx], self.kpts.cryst[kp_idx]
+            um0 = -np.floor(np.around(k_pt - kp_pt, 5))
+            q_target = k_pt - kp_pt + um0
+            all_q = self.qpts.cryst
+            q_indices = np.nonzero(
+                np.all(np.isclose(all_q, q_target, atol=self.TOLERANCE), axis=1)
+            )[0]
+
+        # --- pick lists, sizes, offsets ---
+        if mode == "mccp":
+            idx_ket_arr = idx_bra_arr = self.list_con_idx
+            beg_k = beg_b = self.con_idx_beg
+            n_ket = n_bra = self.con_num
+        elif mode == "mvvp":
+            idx_ket_arr = idx_bra_arr = self.list_val_idx
+            beg_k = beg_b = self.val_idx_beg
+            n_ket = n_bra = self.val_num
+        else:  # mvc
+            idx_ket_arr, beg_k, n_ket = self.list_con_idx, self.con_idx_beg, self.con_num
+            idx_bra_arr, beg_b, n_bra = self.list_val_idx, self.val_idx_beg, self.val_num
+
+        # --- cached real‐space builder ---
+        @lru_cache(maxsize=None)
+        def build_psi(ik: int, raw_ib: int, is_valence: bool):
+            wfn = self.l_wfn[ik]
+            # flip only if valence
+            ib_act = (self.val_num_max - raw_ib) if is_valence else raw_ib
+            psi = np.zeros(wfn.gkspc.grid_shape, dtype=complex)
+            self.l_gsp_wfn[ik]._fft.g2r(
+                arr_inp=wfn.evc_gk._data[ib_act, :],
+                arr_out=psi,
+            )
+            return psi
+
+        # --- loop over (usually one) q_index ---
+        for q_idx in q_indices:
+            # build the correct umklapp and FFT driver
+            if mode != "mvc":
+                qpt   = self.qpts.cryst[q_idx]
+                is0   = bool(self.qpts.is_q0[q_idx]) if self.qpts.is_q0 is not None else False
+                umk   = -np.floor(np.around(kp_pt, 5)) if is0 else -np.floor(np.around(kp_pt + qpt, 5))
+            else:
+                umk = np.zeros(3)
+
+            g_umk   = self.l_gq[q_idx].g_cryst - umk[:, None]
+            idxgrid = cryst2idxgrid(self.gspace.grid_shape, g_umk.astype(int))
+            driver  = get_fft_driver()(self.gspace.grid_shape, idxgrid, normalise_idft=False)
+
+            numg = self.l_gq[q_idx].size_g
+            M    = np.zeros((n_bra, n_ket, numg), dtype=complex)
+            vol  = np.prod(self.gspace.grid_shape)
+
+            # find the matching band‐entries
+            ket_inds = np.where(idx_ket_arr[0] == kp_idx)[0]
+            bra_inds = np.where(idx_bra_arr[0] ==  k_idx)[0]
+
+            for ikp in ket_inds:
+                raw_k  = idx_ket_arr[1][ikp]
+                if not (beg_k <= raw_k < beg_k + n_ket):
+                    continue
+                psi_k = build_psi(kp_idx, raw_k,
+                                is_valence=(mode == "mvvp"))
+
+                for ikb in bra_inds:
+                    raw_b = idx_bra_arr[1][ikb]
+                    if not (beg_b <= raw_b < beg_b + n_bra):
+                        continue
+                    psi_b = build_psi(k_idx, raw_b,
+                                    is_valence=(mode != "mccp"))
+
+                    prod     = np.conj(psi_k) * psi_b
+                    fft_prod = np.zeros(driver.idxgrid.shape, dtype=complex)
+                    driver.r2g(prod, fft_prod)
+
+                    M[raw_b - beg_b, raw_k - beg_k] = fft_prod / vol
+
+            # reorder G‐axis to BGW convention
+            sort_order = sort_cryst_like_BGW(
+                self.l_gq[q_idx].gk_cryst,
+                self.l_gq[q_idx].gk_norm2
+            )
+            M = M[:, :, sort_order]
+
+            return (M, q_idx) if ret_q else M
+    
     # mccp -> <ck|exp(i(k-kp-G0+G).r)|ckp>
     def mccp(
             self,

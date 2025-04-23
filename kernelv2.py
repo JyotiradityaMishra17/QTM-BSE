@@ -88,21 +88,27 @@ class KernelMtxElv2:
                 )
             )
 
-        # NOTE: sorting needs to be corrected according to BerkeleyGW.
+        self.list_idx_G0 = []
+
         self.l_epsinv = []
         for i_q in range(self.qpts.numq):
             epsinv = self.l_epsmats[i_q]
             epsinv = np.conjugate(epsinv)
-                
-            sort_order = sort_cryst_like_BGW(
-                self.l_gq_epsinv[i_q].gk_cryst, self.l_gq_epsinv[i_q].gk_norm2
-            )
+            
+            sort_order = sort_cryst_like_BGW(self.l_gq[i_q].gk_cryst, self.l_gq[i_q].gk_norm2)
+            sort_order_eps = sort_cryst_like_BGW(self.l_gq_epsinv[i_q].gk_cryst, self.l_gq_epsinv[i_q].gk_norm2)
+            zero_index = np.argmin(np.linalg.norm(self.l_gq[i_q].g_cryst.T[sort_order], axis = 1))
+
+            # After sorting W, M, etc, new location of G0.
+            idx_G0 = sort_order[zero_index]
+            self.list_idx_G0.append(idx_G0)
                         
             # As given in the sigma code, I need to use another sorting.
-            sort_order_QTM = np.argsort(sort_order)
+            sort_order_QTM = np.argsort(sort_order_eps)
 
             # But my matrices, vcoul, etc. are sorted according to BGW.
-            sort_order_BGW = sort_order_QTM[sort_order]
+            sort_order_BGW = sort_order_QTM[sort_order_eps]
+
 
             self.l_epsinv.append(
                 reorder_2d_matrix_sorted_gvecs(epsinv, sort_order_BGW)
@@ -125,7 +131,9 @@ class KernelMtxElv2:
 
         self.l_wcoul = []
         for i_q in range(self.qpts.numq):
+            idx_G0 = self.list_idx_G0[i_q]
             numg = self.l_gq[i_q].size_g
+
             epsinv = self.l_epsinv[i_q]
             numg_eps = self.l_gq_epsinv[i_q].size_g
 
@@ -137,17 +145,22 @@ class KernelMtxElv2:
             vqg = vqg[sort_order]
 
             wcoul = np.zeros((numg, numg), dtype=complex)
-            wcoul[0, 0] = 1 # Semiconductor screening
 
+            # Fill in the entire wcoul matrix.
+            wcoul[:numg_eps, :numg_eps] = epsinv[:numg_eps, :numg_eps].T * vqg[:numg_eps]
+            np.fill_diagonal(wcoul[numg_eps:numg, numg_eps:numg], vqg[numg_eps:numg])
+
+            # Correct the wing matrix elements.
             if i_q == self.qpts.index_q0:
-                qq = 0
+                wcoul[idx_G0, :numg_eps] = 0
+                wcoul[:numg_eps, idx_G0] = 0
             else:
                 qq = np.linalg.norm(self.qpts.cryst[i_q])
-                wcoul[0, 1:numg_eps] = epsinv[1:numg_eps, 0] * vqg[1:numg_eps] * qq
-                wcoul[1:numg_eps, 0] = epsinv[0, 1:numg_eps] * vqg[0] * qq
+                wcoul[idx_G0, :numg_eps] = epsinv[:numg_eps, idx_G0] * vqg[:numg_eps] * qq
+                wcoul[:numg_eps, idx_G0] = epsinv[idx_G0, :numg_eps] * vqg[idx_G0] * qq
 
-            wcoul[1:numg_eps, 1:numg_eps] = epsinv[1:numg_eps, 1:numg_eps].T * vqg[1:numg_eps]
-            np.fill_diagonal(wcoul[numg_eps:numg, numg_eps:numg], vqg[numg_eps:numg])
+            # Correct the head matrix elements.
+            wcoul[idx_G0, idx_G0] = 1
 
             self.l_wcoul.append(wcoul)
             
@@ -254,6 +267,8 @@ class KernelMtxElv2:
             local_results = []
 
             for iq, ikp in local_pairs:
+                idx_G0 = self.list_idx_G0[iq]
+
                 mvcp = self.charge_mtxel.mtxelv2(0, ikp, "mvc") # -> (v, c, g)
                 mccp = self.charge_mtxel.mtxelv2(iq, ikp, "mccp") # -> (c, C, g)
 
@@ -265,18 +280,29 @@ class KernelMtxElv2:
 
                 # Compute the head matrix elements.
                 einstrh = "vV, cC -> cCvV"
-                head = np.einsum(einstrh, np.conj(mvvp[:, :, 0]), mccp[:, :, 0], optimize=True)
+                head = np.einsum(einstrh, np.conj(mvvp[:, :, idx_G0]), mccp[:, :, idx_G0], optimize=True)
 
                 # Compute the wing matrix elements.
                 einstrw1 = "vVG, G, cC -> cCvV"
-                wing = np.einsum(einstrw1, np.conj(mvvp[:, :, 1:numg_eps]), wcoul[0, 1:numg_eps], mccp[:, :, 0], optimize=True)
+                mvvp_w1 = deepcopy(mvvp)
+
+                mvvp_w1[:, :, idx_G0] = 0
+                wing = np.einsum(einstrw1, np.conj(mvvp_w1[:, :, :numg_eps]), wcoul[idx_G0, :numg_eps], mccp[:, :, idx_G0], optimize=True)
 
                 einstrw2 = "vV, g, cCg -> cCvV"
-                wing += np.einsum(einstrw2, np.conj(mvvp[:, :, 0]), wcoul[1:numg_eps, 0], mccp[:, :, 1:numg_eps], optimize=True)
+                mccp_w2 = deepcopy(mccp)
+
+                mccp_w2[:, :, idx_G0] = 0
+                wing += np.einsum(einstrw2, np.conj(mvvp[:, :, idx_G0]), wcoul[:numg_eps, idx_G0], mccp_w2[:, :, :numg_eps], optimize=True)
 
                 # Compute the body matrix elements.
                 einstrb = "vVG, gG, cCg -> cCvV"
-                body = np.einsum(einstrb, np.conj(mvvp[:, :, 1:]), wcoul[1:, 1:], mccp[:, :, 1:], optimize=True)
+                mvvp_b = deepcopy(mvvp)
+                mvvp_b[:, :, idx_G0] = 0
+
+                mccp_b = deepcopy(mccp)
+                mccp_b[:, :, idx_G0] = 0
+                body = np.einsum(einstrb, np.conj(mvvp_b), wcoul, mccp_b, optimize=True)
 
                 # Compute the exchange matrix elements.
                 einstrx = "vcg, g, VCg -> cCvV"
@@ -335,6 +361,7 @@ class KernelMtxElv2:
 
             for iq in range(numq):
                 for ikp in range(numk):
+                    idx_G0 = self.list_idx_G0[iq]
                     mvcp = self.charge_mtxel.mtxelv2(0, ikp, "mvc")
                     mccp = self.charge_mtxel.mtxelv2(iq, ikp, "mccp")
 
@@ -346,27 +373,36 @@ class KernelMtxElv2:
 
                     # Compute the head matrix elements.
                     einstrh = "vV, cC -> cCvV"
-                    head = np.einsum(einstrh, np.conj(mvvp[:, :, 0]), mccp[:, :, 0], optimize=True)
+                    head = np.einsum(einstrh, np.conj(mvvp[:, :, idx_G0]), mccp[:, :, idx_G0], optimize=True)
                     head_mtx[ik, ikp] = head
 
                     # Compute the wing matrix elements.
                     einstrw1 = "vVG, G, cC -> cCvV"
-                    wing = np.einsum(einstrw1, np.conj(mvvp[:, :, 1:numg_eps]), wcoul[0, 1:numg_eps], mccp[:, :, 0], optimize=True)
+                    mvvp_w1 = deepcopy(mvvp)
+                    mvvp_w1[:, :, idx_G0] = 0
+                    wing = np.einsum(einstrw1, np.conj(mvvp_w1[:, :, :numg_eps]), wcoul[idx_G0, :numg_eps], mccp[:, :, idx_G0], optimize=True)
 
                     einstrw2 = "vV, g, cCg -> cCvV"
-                    wing += np.einsum(einstrw2, np.conj(mvvp[:, :, 0]), wcoul[1:numg_eps, 0], mccp[:, :, 1:numg_eps], optimize=True)
+                    mccp_w2 = deepcopy(mccp)
+                    mccp_w2[:, :, idx_G0] = 0
+                    wing += np.einsum(einstrw2, np.conj(mvvp[:, :, idx_G0]), wcoul[:numg_eps, idx_G0], mccp_w2[:, :, :numg_eps], optimize=True)
                     wing_mtx[ik, ikp] = wing
 
                     # Compute the body matrix elements.
                     einstrb = "vVG, gG, cCg -> cCvV"
-                    body = np.einsum(einstrb, np.conj(mvvp[:, :, 1:]), wcoul[1:, 1:], mccp[:, :, 1:], optimize=True)
+                    mvvp_b = deepcopy(mvvp)
+                    mvvp_b[:, :, idx_G0] = 0
+
+                    mccp_b = deepcopy(mccp)
+                    mccp_b[:, :, idx_G0] = 0
+                    body = np.einsum(einstrb, np.conj(mvvp_b), wcoul, mccp_b, optimize=True)
                     body_mtx[ik, ikp] = body
 
                     # Compute the exchange matrix elements.
                     einstrx = "vcg, g, VCg -> cCvV"
                     exc = np.einsum(einstrx, np.conj(mvc), vq0g, mvcp, optimize=True)
                     exc_mtx[ik, ikp] = exc
-
+                    
             return {"exc": exc_mtx, "head": head_mtx, "wings": wing_mtx, "body": body_mtx}
 
             
