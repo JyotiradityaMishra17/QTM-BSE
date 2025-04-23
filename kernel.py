@@ -1,9 +1,3 @@
-### IDEA TO FIX EPSINV vs NORMAL INDEXING:
-### Create two mccp, mvvp, mvc - one for normal large gq space and the other for epsinv gq space.
-### Calculate the head, wings and exchange using the epsinv gq space. For the unscreened part
-### use the portion of the large gq space that is not in the epsinv gq space.
-
-
 import numpy as np
 from typing import List, NamedTuple
 from copy import deepcopy
@@ -33,9 +27,7 @@ from mtxel import ChargeMtxEL
 
 class KernelMtxEl:
     ryd = 1 / ELECTRONVOLT_RYD
-    fixwings = True
     TOLERANCE = 1e-5
-    vcutoff = 1e-5
 
     def __init__(
         self,
@@ -48,7 +40,7 @@ class KernelMtxEl:
         epsinp: NamedTuple,
         sigmainp: NamedTuple,
         l_epsmats: List[np.ndarray],
-        q0val: np.ndarray,
+        q0: np.ndarray,
         parallel: bool = True,
         num_bands_val: int = None,
         num_bands_con: int = None,
@@ -93,29 +85,10 @@ class KernelMtxEl:
                     ecutwfn=self.epsinp.epsilon_cutoff * RYDBERG_HART,
                 )
             )
-
-        # NOTE: sorting needs to be corrected according to BerkeleyGW.
-        self.l_epsinv = []
-        for i_q in range(self.qpts.numq):
-            epsinv = self.l_epsmats[i_q]
-            epsinv = np.conjugate(epsinv)
-                
-            sort_order = sort_cryst_like_BGW(
-                self.l_gq_epsinv[i_q].gk_cryst, self.l_gq_epsinv[i_q].gk_norm2
-            )
-                        
-            # As given in the sigma code, I need to use another sorting.
-            sort_order_QTM = np.argsort(sort_order)
-
-            # But my matrices, vcoul, etc. are sorted according to BGW.
-            sort_order_BGW = sort_order_QTM[sort_order]
-
-            self.l_epsinv.append(
-                reorder_2d_matrix_sorted_gvecs(epsinv, sort_order_BGW)
-            )
             
-        self.q0val = q0val
-            
+        self.q0 = q0
+        self.q0norm2 = np.dot(np.conjugate(self.q0), self.q0)
+
         self.charge_mtxel = ChargeMtxEL(
             crystal,
             gspace,
@@ -129,6 +102,13 @@ class KernelMtxEl:
             num_bands_con,
         )
 
+        # self.l_g_to_geps = self.map_g_to_geps()
+        self.l_g0 = self.find_g0()
+        self.l_vqg = self.coulombint()
+
+        self.l_epsinv = self.fix_eps_order()
+        self.l_wcoul = self.screenedint()
+
     @classmethod
     def from_qtm(
         cls,
@@ -139,7 +119,7 @@ class KernelMtxEl:
         epsinp: NamedTuple,
         sigmainp: NamedTuple,
         epsilon: Epsilon,
-        q0val: np.ndarray,
+        q0: np.ndarray,
         parallel: bool = True,
         num_bands_val: int = None,
         num_bands_con: int = None,
@@ -154,7 +134,7 @@ class KernelMtxEl:
             epsinp=epsinp,
             sigmainp=sigmainp,
             l_epsmats=epsilon.l_epsinv,
-            q0val=q0val,
+            q0=q0,
             parallel=parallel,
             num_bands_val=num_bands_val,
             num_bands_con=num_bands_con,
@@ -169,7 +149,7 @@ class KernelMtxEl:
         epsinp: NamedTuple,
         sigmainp: NamedTuple,
         l_epsmats: List[np.ndarray],
-        q0val: np.ndarray,
+        q0: np.ndarray,
         parallel: bool = True,
         num_bands_val: int = None,
         num_bands_con: int = None,
@@ -188,7 +168,7 @@ class KernelMtxEl:
             epsinp = epsinp,
             sigmainp = sigmainp,
             l_epsmats = l_epsmats,
-            q0val=q0val,
+            q0=q0,
             parallel = parallel,
             num_bands_val = num_bands_val,
             num_bands_con = num_bands_con,
@@ -196,661 +176,549 @@ class KernelMtxEl:
 
         return kernelclass
     
-    # Define helper method to calculate the head of the direct kernel matrix.
-    def calc_head(
-            self,
-            vqg,    # Value of v(q + G) for q
-            epsinv, # Inverse of epsilon matrix for q
-            mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
-            mvvp,   # Charge matrix element for conduction bands, k = k_idx, k' = kp_idx
-    ):
-        # NOTE: epsinv lives in a smaller gspace, due to the epsinp cutoff.
-        # So, we set up everything in the same gspace as epsinv.
-        gsize = epsinv.shape[0]
-
-        # Set up parameters for head with G = 0, G' = 0.
-        # As in BerkeleyGW, we set W(G = 0, G' = 0) = 1 for semiconductor screening.
-
-        mccp_head = deepcopy(mccp) # mccp -> (c, C, g)
-        mccp_head = mccp_head[..., :gsize] # mccp -> (c, C, g)
-        mccp_head = mccp_head[..., 0] # mccp -> (c, C, g = 0)
-
-        mvvp_head = deepcopy(mvvp) # mvvp -> (v, V, G)
-        mvvp_head = mvvp_head[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_head = mvvp_head[..., 0] # mvvp -> (v, V, G = 0)
-
-        # Head = sum(g=0, G=0)[conj(mvvp(G)) * W(g, G) * mccp(g)]
-        einstr = "vV, cC -> cCvV"
-        head = np.einsum(
-            einstr,
-            np.conj(mvvp_head),
-            mccp_head,
-            optimize=True,
-        )
-
-        # Remove stored deepcopies after calculation
-        del mccp_head
-        del mvvp_head
-
-        return head
     
-    # Define helper method to calculate the wings of the direct kernel matrix.
-    def calc_wings(
-            self,
-            q_idx,  # Index of q-point
-            vqg,    # Value of v(q + G) for q
-            epsinv, # Inverse of epsilon matrix for q
-            mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
-            mvvp,   # Charge matrix element for conduction bands, k = k_idx, k' = kp_idx
-    ):
+    # def map_g_to_geps(self):
+    #     """
+    #     For each (g+q)-vector in the eps (g+q) space, find the corresponding (g+q)-vector in the full (g+q)-space.
+    #     """
 
-        # NOTE: epsinv lives in a smaller gspace, due to the epsinp cutoff.
-        # So, we set up everything in the same gspace as epsinv.
-        gsize = epsinv.shape[0]
+    #     def map_q(iq: int):
+    #         gq     = self.l_gq[iq].gk_cryst      # (3, numg)
+    #         gq_eps = self.l_gq_epsinv[iq].gk_cryst  # (3, numg_eps)
+    #         tol    = self.TOLERANCE
 
-        # Set up parameters for wing with G = 0, G' != 0 -> wing prime.         
-        mccp_wingp = deepcopy(mccp) # mccp -> (c, C, g)
-        mccp_wingp = mccp_wingp[..., :gsize] # mccp -> (c, C, g)
-        mccp_wingp = mccp_wingp[..., 0] # mccp -> (c, C, g = 0)
+    #         diff = np.abs(gq_eps[:, :, None] - gq[:, None, :])
+    #         mask = np.all(diff < tol, axis=0)
 
-        mvvp_wingp = deepcopy(mvvp) # mvvp -> (v, V, G)
-        mvvp_wingp = mvvp_wingp[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_wingp[..., 0] = 0 # mvvp -> (v, V, G != 0)
-
-        vqg_wingp = deepcopy(vqg) # vqg -> G
-        vqg_wingp = vqg_wingp[:gsize] # vqg -> G
-        vqg_wingp[0] = 0 # vqg -> G != 0
-
-        epsinv_wingp = deepcopy(epsinv) # epsinv -> (g, G)
-        epsinv_wingp = epsinv_wingp[0, :] # epsinv -> (g = 0, G)
-        epsinv_wingp[0] = 0 # epsinv -> (g = 0, G != 0)
-
-        # wing prime = sum(g=0, G != 0)[conj(mvvp(G)) * espinv(g, G) * vqg(G) * mccp(g)]
-        einstr_wingp = "vVG, G, G, cC -> cCvV"
-        wingp = np.einsum(
-            einstr_wingp,
-            np.conj(mvvp_wingp),
-            epsinv_wingp,
-            vqg_wingp,
-            mccp_wingp,
-            optimize=True,
-        )
-
-        # Remove stored deepcopies after calculation
-        del mccp_wingp
-        del mvvp_wingp
-
-        del vqg_wingp
-        del epsinv_wingp
+    #         return mask.argmax(axis=1).tolist()
         
-        # Set up parameters for wing with G != 0, G' = 0. -> wing
-        mccp_wing = deepcopy(mccp) # mccp -> (c, C, g)
-        mccp_wing = mccp_wing[..., :gsize] # mccp -> (c, C, g)
-        mccp_wing[..., 0] = 0 # mccp -> (c, C, g != 0)
-
-        mvvp_wing = deepcopy(mvvp) # mvvp -> (v, V, G)
-        mvvp_wing = mvvp_wing[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_wing = mvvp_wing[..., 0] # mvvp -> (v, V, G = 0)
-
-        vqg_wing = deepcopy(vqg) # vqg -> G
-        vqg_wing = vqg_wing[:gsize] # vqg -> G
-        vqg_wing = vqg_wing[0] # vqg -> G = 0
-
-        epsinv_wing = deepcopy(epsinv) # epsinv -> (g, G)
-        epsinv_wing = epsinv_wing[:, 0] # epsinv -> (g, G = 0)
-        epsinv_wing[0] = 0 # epsinv -> (g != 0, G = 0)
-
-        # wing = sum(g != 0, G = 0)[conj(mvvp(G)) * espinv(g, G) * vqg(G) * mccp(g)]
-        einstr_wing = "vV, g, cCg -> cCvV"
-        wing = np.einsum(
-            einstr_wing,
-            np.conj(mvvp_wing),
-            epsinv_wing,
-            mccp_wing,
-            optimize=True,
-        )
-
-        wing = wing * vqg_wing
-        # Remove stored deepcopies after calculation
-        del mccp_wing
-        del mvvp_wing
-
-        del vqg_wing
-        del epsinv_wing
-
-        wings = wing + wingp
-
-        if q_idx == self.qpts.index_q0:
-            wings = np.zeros_like(wings)
-        else:
-            qval = np.linalg.norm(self.qpts.cryst[q_idx])
-            wings = wings * qval
-
-        return wings
+    #     g_to_geps_map = [np.array(map_q(iq)) for iq in range(self.qpts.numq)]
+    #     return g_to_geps_map
     
-    # Define helper method to calculate the body of the direct kernel matrix.
-    def calc_body(
-            self,
-            vqg,    # Value of v(q + G) for q
-            epsinv, # Inverse of epsilon matrix for q
-            mccp,   # Charge matrix element for valence bands, k = k_idx, k' = kp_idx
-            mvvp,   # Charge matrix element for conduction bands, k = k_idx, k' = kp_idx            
-    ):
-        # NOTE: epsinv lives in a smaller gspace, due to the epsinp cutoff.
-        # So, we set up everything in the same gspace as epsinv.
-        gsize = epsinv.shape[0]
+    # def find_g0(self):
+    #     """
+    #     Find the index of the G0  vector for a given q-point, in the geps space.
+    #     """
+    #     def where_g0(iq:int):
+    #         sort_order = sort_cryst_like_BGW(self.l_gq_epsinv[iq].gk_cryst, self.l_gq_epsinv[iq].gk_norm2)
 
-        # Set up parameters for body with G != 0, G' != 0.
-        mccp_body = deepcopy(mccp) # mccp -> (c, C, g)
-        mccp_body = mccp_body[..., :gsize] # mccp -> (c, C, g)
-        mccp_body[..., 0] = 0 # mccp -> (c, C, g != 0)
+    #         idx_g0 = np.argmin(np.linalg.norm(self.l_gq_epsinv[iq].g_cryst.T[sort_order], axis=1))
+    #         return 0 
+        
+    #     g0 = [where_g0(iq) for iq in range(self.qpts.numq)]
+    #     return g0
 
-        mvvp_body = deepcopy(mvvp) # mvvp -> (v, V, G)
-        mvvp_body = mvvp_body[..., :gsize] # mvvp -> (v, V, G)
-        mvvp_body[..., 0] = 0 # mvvp -> (v, V, G != 0)
+    def find_g0(self):
+        """
+        Find the index of the G0 vector for a given q-point, in the BGW sorted geps space.
+        """
 
-        vqg_body = deepcopy(vqg) # vqg -> G
-        vqg_body = vqg_body[:gsize] # vqg -> G
-        vqg_body[0] = 0
+        def where_g0(iq:int):
+            # Determine the sorting order of the q + G vectors in the eps space.
+            sort_order = sort_cryst_like_BGW(self.l_gq_epsinv[iq].gk_cryst, self.l_gq_epsinv[iq].gk_norm2)
 
-        epsinv_body = deepcopy(epsinv) # epsinv -> (g, G)
-        epsinv_body[0, 0] = 0 # epsinv -> (g != 0, G != 0)
+            qpt = self.qpts.cryst[iq]
+            sorted_gvecs = self.l_gq_epsinv[iq].gk_cryst.T[sort_order]
 
-        # body = sum(g != 0, G != 0)[conj(mvvp(G)) * espinv(g, G) * vqg(G) * mccp(g)]
-        einstr_body = "vVG, gG, G, cCg -> cCvV"
-        body = np.einsum(
-            einstr_body,
-            np.conj(mvvp_body),
-            epsinv_body,
-            vqg_body,
-            mccp_body,
-            optimize=True,
-        )
+            idx_g0 = np.where(np.all(sorted_gvecs == qpt, axis=1))[0][0]
+            return idx_g0
+        
+        g0 = [where_g0(iq) for iq in range(self.qpts.numq)]
+        return g0
 
-        # Remove stored deepcopies after calculation
-        del mccp_body
-        del mvvp_body
-        del vqg_body
-        del epsinv_body
+    # def coulombint(self):
+    #     """
+    #     Calculate the Coulomb potential for a given q-point.
+    #     """
 
-        # Add contributions from unscreened coulomb interaction at "high" G.
-        mccp_usc = deepcopy(mccp) # mccp -> (c, C, g)
-        mccp_usc = mccp_usc[..., gsize:] # mccp -> (c, C, g > g_eps)
+    #     def calc_vqg(iq: int):
+    #         norm_array = self.l_gq[iq].gk_norm2
 
-        mvvp_usc = deepcopy(mvvp) # mvvp -> (v, V, G)
-        mvvp_usc = mvvp_usc[..., gsize:] # mvvp -> (v, V, G > g_eps)
+    #         vqg = np.where(norm_array < self.TOLERANCE, 1/self.q0norm2, 1 / np.where(norm_array < self.TOLERANCE, 1, norm_array))
+    #         return vqg
 
-        vqg_usc = deepcopy(vqg) # vqg -> G
-        vqg_usc = vqg_usc[gsize:] # vqg -> G > g_eps
-
-        # body_usc = sum(g > g_eps)[conj(mvvp(g)) * vqg(g) * mccp(g)]
-        einstr_body_usc = "vVg, g, cCg -> cCvV"
-        body_usc = np.einsum(
-            einstr_body_usc,
-            np.conj(mvvp_usc),
-            vqg_usc,
-            mccp_usc,
-            optimize=True,
-        )
-
-        # Remove stored deepcopies after calculation
-        del mccp_usc
-        del mvvp_usc    
-        del vqg_usc
-
-        # Add the unscreened contribution to the body.
-        body += body_usc
-
-        return body
-
-    # Define helper method to calculate the exchange kernel matrix.
-    def calc_exc(
-            self,
-            vq0g, # Value of v(q + G) for q = 0.
-            mvc,  # Charge matrix element mvc for k = k_idx.
-            mvcp, # Charge matrix element mvc for k' = kp_idx.            
-    ):  
-        # Set v(q = 0, G = 0) to 0.
-        vq0g_exc = deepcopy(vq0g)
-        vq0g_exc[0] = 0.0
-
-        # Shape required for the result is (v,V,c,C).
-        # mvc -> (v,c,g), vq0g -> g & mvcp -> (V, C, g)
-        einstr = "vcg, g, VCg -> cCvV"
-
-        exc = np.einsum(
-            einstr,
-            np.conj(mvc),
-            vq0g_exc,
-            mvcp,
-            optimize=True,
-        )
-
-        return exc
+    #     vqg = [np.array(calc_vqg(iq)) for iq in range(self.qpts.numq)] 
+    #     return vqg
     
-    def calc_kernel_mtxel(self, parallel: bool = True):
+    def coulombint(self):
+        """
+        Calculate the Coulomb potential for a given q-point, in the BGW sorted gspace.
+        """
+
+        def calc_vqg(iq: int):
+            norm_array = self.l_gq[iq].gk_norm2
+            sort_order = sort_cryst_like_BGW(self.l_gq[iq].gk_cryst, norm_array)
+
+            vqg = np.where(norm_array < self.TOLERANCE, 1/self.q0norm2, 1 / np.where(norm_array < self.TOLERANCE, 1, norm_array))
+            vqg = vqg[sort_order]
+
+            return vqg
+
+        vqg = [np.array(calc_vqg(iq)) for iq in range(self.qpts.numq)] 
+        return vqg
+    
+    # def fix_eps_order(self):
+    #     """
+    #     Fix the order of gvecs in the epsinv matrix to match other terms.
+    #     """
+
+    #     def fix_order(iq: int):
+    #         epsinv = self.l_epsmats[iq]
+    #         epsinv = np.conjugate(epsinv)
+    #         norm_array = self.l_gq_epsinv[iq].gk_norm2
+
+    #         sort_order = sort_cryst_like_BGW(self.l_gq_epsinv[iq].gk_cryst, norm_array)
+    #         sort_order_QTM = np.argsort(sort_order)
+
+    #         epsinv = reorder_2d_matrix_sorted_gvecs(epsinv, sort_order_QTM)
+    #         return epsinv
+        
+    #     l_epsinv = [np.array(fix_order(iq)) for iq in range(self.qpts.numq)]
+    #     return l_epsinv
+    
+    def fix_eps_order(self):
+        """
+        Fix the order of gvecs in the epsinv matrix to match other terms, in the BGW sorted eps space.
+        """
+
+        def fix_order(iq: int):
+            epsinv = self.l_epsmats[iq]
+            epsinv = np.conjugate(epsinv)
+            norm_array = self.l_gq_epsinv[iq].gk_norm2
+
+            sort_order = sort_cryst_like_BGW(self.l_gq_epsinv[iq].gk_cryst, norm_array)
+            sort_order_QTM = np.argsort(sort_order)
+
+            sort_order_BGW = sort_order_QTM[sort_order]
+            epsinv = reorder_2d_matrix_sorted_gvecs(epsinv, sort_order_BGW)
+            return epsinv
+        
+        l_epsinv = [np.array(fix_order(iq)) for iq in range(self.qpts.numq)]
+        return l_epsinv
+    
+    # def screenedint(self):
+    #     """
+    #     Calculate the screened Coulomb potential for a given q-point.
+    #     """
+
+    #     def calc_wqg(iq: int):
+    #         idx_g0_eps = self.l_g0[iq]            
+    #         g_to_eps = self.l_g_to_geps[iq]
+    #         idx_g0 = g_to_eps[idx_g0_eps]
+
+    #         vqg = self.l_vqg[iq]
+    #         epsinv = self.l_epsinv[iq]
+
+    #         numg = self.l_gq[iq].size_g
+    #         wqg = np.diag(vqg.astype(complex))
+
+    #         # Treat the body
+    #         vqg_mapped = vqg[g_to_eps]
+
+    #         block = epsinv.T * vqg_mapped
+    #         wqg[np.ix_(g_to_eps, g_to_eps)] = block
+
+    #         # Treat the wings
+    #         if iq == self.qpts.index_q0:
+    #             wqg[idx_g0, :] = 0
+    #             wqg[:, idx_g0] = 0
+    #         else:
+    #             qq = np.linalg.norm(self.qpts.cryst[iq])
+    #             wqg[idx_g0, g_to_eps] = epsinv[:, idx_g0_eps] * vqg_mapped * qq
+    #             wqg[g_to_eps, idx_g0] = epsinv[idx_g0_eps, :] * vqg[idx_g0] * qq
+
+    #         # Treat the head
+    #         wqg[idx_g0, idx_g0] = 1
+
+    #         return wqg
+
+    #     return [np.array(calc_wqg(iq)) for iq in range(self.qpts.numq)]
+    
+    def screenedint(self):
+        """
+        Calculate the screened Coulomb potential for a given q-point.
+        """
+
+        def calc_wqg(iq: int):
+            idx_g0 = self.l_g0[iq]
+            numg_eps = self.l_gq_epsinv[iq].size_g
+            
+            vqg = self.l_vqg[iq]
+            epsinv = self.l_epsinv[iq]
+
+            # Construct the body.
+            wqg = np.diag(vqg.astype(complex))
+            wqg[:numg_eps, :numg_eps] = epsinv.T * vqg[:numg_eps]
+
+            # Treat the wings
+            if iq == self.qpts.index_q0:
+                wqg[idx_g0, :] = 0
+                wqg[:, idx_g0] = 0
+            else:
+                qq = np.linalg.norm(self.qpts.cryst[iq])
+                wqg[idx_g0, :numg_eps] = epsinv[:, idx_g0] * vqg[:numg_eps] * qq
+                wqg[:numg_eps, idx_g0] = epsinv[idx_g0, :] * vqg[idx_g0] * qq
+
+            # Treat the head
+            wqg[idx_g0, idx_g0] = 1
+            return wqg
+
+        return [np.array(calc_wqg(iq)) for iq in range(self.qpts.numq)]
+
+    def kernel_mtxel(self, parallel: bool = True):
         numk = self.kpts.numk
         num_val = self.charge_mtxel.val_num
         num_con = self.charge_mtxel.con_num
-        norm2_q0val = np.dot(np.conjugate(self.q0val), self.q0val)
 
-        # --- Calculate the value of v(q + G) for q = 0 ---
-        norm_array = self.l_gq[0].gk_norm2
-        vq0g = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
-        sort_order_0 = sort_cryst_like_BGW(
-            self.l_gq[0].gk_cryst, norm_array
-        )
-        vq0g = vq0g[sort_order_0]
+        # def calc_kernel(ik, ikp):
+        #     mvc = self.charge_mtxel.matrix_element("mvc", ik)
+        #     mvcp = self.charge_mtxel.matrix_element("mvc", ikp)
 
-        # If using parallel, work with MPI; otherwise run serially.
+        #     mccp = self.charge_mtxel.matrix_element("mccp", ik, ikp)
+        #     mvvp, iq = self.charge_mtxel.matrix_element("mvvp", ik, ikp, ret_q=True)
+
+        #     idx_g0_eps = self.l_g0[iq]
+        #     g_to_eps = self.l_g_to_geps[iq]
+        #     idx_g0 = g_to_eps[idx_g0_eps]
+        #     wcoul = self.l_wcoul[iq]
+
+        #     # Compute the head matrix elements.
+        #     einstrh = "vV, cC -> cCvV"
+        #     head = np.einsum(einstrh, np.conj(mvvp[..., idx_g0]), mccp[..., idx_g0], optimize=True)
+
+        #     # Compute the wings matrix elements.
+        #     einstrw1 = "vVG, G, cC -> cCvV"
+        #     mvvp_w1 = deepcopy(mvvp)
+
+        #     mvvp_w1[..., idx_g0] = 0
+        #     wings = np.einsum(einstrw1, np.conj(mvvp_w1[..., g_to_eps]), wcoul[idx_g0, g_to_eps], mccp[..., idx_g0], optimize=True)
+
+        #     einstrw2 = "vV, g, cCg -> cCvV"
+        #     mccp_w2 = deepcopy(mvvp)
+
+        #     mccp_w2[..., idx_g0] = 0
+        #     wings += np.einsum(einstrw2, np.conj(mvvp[..., idx_g0]), wcoul[g_to_eps, idx_g0], mccp_w2[..., g_to_eps], optimize=True)
+
+        #     # Compute the body matrix elements.
+        #     einstrb = "vVG, gG, cCg -> cCvV"
+        #     mvvp_b = deepcopy(mvvp)
+        #     mvvp_b[..., idx_g0] = 0
+
+        #     mccp_b = deepcopy(mccp)
+        #     mccp_b[..., idx_g0] = 0
+        #     body = np.einsum(einstrb, np.conj(mvvp_b), wcoul, mccp_b, optimize=True)
+
+        #     # Compute the exchange matrix elements.
+        #     einstrx = "vcg, g, VCg -> cCvV"
+        #     vq0g = deepcopy(self.l_vqg[self.qpts.index_q0])
+
+        #     vq0g[0] = 0
+        #     exc = np.einsum(einstrx, np.conj(mvc), vq0g, mvcp, optimize=True)
+
+        #     del mvvp_w1, mvvp_b, mccp_w2, mccp_b, vq0g
+
+        #     return exc, head, wings, body
+
+        def calc_kernel(ik, ikp):
+            mvc = self.charge_mtxel.matrix_element("mvc", ik)
+            mvcp = self.charge_mtxel.matrix_element("mvc", ikp)
+
+            mccp = self.charge_mtxel.matrix_element("mccp", ik, ikp)
+            mvvp, iq = self.charge_mtxel.matrix_element("mvvp", ik, ikp, ret_q=True)
+
+            idx_g0 = self.l_g0[iq]
+            numg_eps = self.l_gq_epsinv[iq].size_g
+            wcoul = self.l_wcoul[iq]
+
+            # Compute the head matrix elements.
+            einstrh = "vV, cC -> cCvV"
+            head = np.einsum(einstrh, np.conj(mvvp[..., idx_g0]), mccp[..., idx_g0], optimize=True)
+
+            # Compute the wing matrix elements.
+            einstrw1 = "vVG, G, cC -> cCvV"
+            mvvp_w1 = deepcopy(mvvp)
+
+            mvvp_w1[:, :, idx_g0] = 0
+            wings = np.einsum(einstrw1, np.conj(mvvp_w1[:, :, :numg_eps]), wcoul[idx_g0, :numg_eps], mccp[:, :, idx_g0], optimize=True)
+
+            einstrw2 = "vV, g, cCg -> cCvV"
+            mccp_w2 = deepcopy(mccp)
+
+            mccp_w2[:, :, idx_g0] = 0
+            wings += np.einsum(einstrw2, np.conj(mvvp[:, :, idx_g0]), wcoul[:numg_eps, idx_g0], mccp_w2[:, :, :numg_eps], optimize=True)
+
+            # Compute the body matrix elements.
+            einstrb = "vVG, gG, cCg -> cCvV"
+            mvvp_b = deepcopy(mvvp)
+            mvvp_b[..., idx_g0] = 0
+
+            mccp_b = deepcopy(mccp)
+            mccp_b[..., idx_g0] = 0
+            body = np.einsum(einstrb, np.conj(mvvp_b), wcoul, mccp_b, optimize=True)
+
+            # Compute the exchange matrix elements.
+            einstrx = "vcg, g, VCg -> cCvV"
+            vq0g = deepcopy(self.l_vqg[self.qpts.index_q0])
+
+            vq0g[0] = 0
+            exc = np.einsum(einstrx, np.conj(mvc), vq0g, mvcp, optimize=True)
+
+            del mvvp_w1, mvvp_b, mccp_w2, mccp_b, vq0g
+
+            return exc, head, wings, body
+
         if self.in_parallel and parallel:
             proc_rank = self.comm.Get_rank()
 
-            # On the root process, generate the list of unique pairs with k >= kp.
             if proc_rank == 0:
-                full_pairs = [
-                    (k_idx, kp_idx)
-                    for k_idx in range(numk)
-                    for kp_idx in range(numk)
-                    if k_idx >= kp_idx
-                ]
+                full_pairs = [(k_idx, kp_idx) for k_idx in range(numk) for kp_idx in range(numk) if k_idx <= kp_idx]
+
                 full_pairs = np.array(full_pairs)
                 chunks = np.array_split(full_pairs, self.comm.Get_size())
+
             else:
                 chunks = None
 
-            # Scatter the unique k–kp pairs among all processes.
             local_pairs = self.comm.scatter(chunks, root=0)
-
-            # Compute local blocks for each k–kp pair in the received chunk.
             local_blocks = []
+
             for pair in local_pairs:
-                k_idx, kp_idx = pair
+                ik, ikp = pair
+                exc, head, wings, body = calc_kernel(ik, ikp)
 
-                # Retrieve quantities for the given k-point pair.
-                mvc = self.charge_mtxel.mvc(k_idx)
-                mvcp = self.charge_mtxel.mvc(kp_idx)
+                local_blocks.append((ik, ikp, exc, head, wings, body))
+                
+                if ik != ikp:
+                    local_blocks.append((ikp, ik, exc.conjugate(), head.conjugate(), wings.conjugate(), body.conjugate()))
 
-                data_mvvp = self.charge_mtxel.mvvp(
-                    k_idx=k_idx,
-                    kp_idx=kp_idx,
-                    ret_q='True'
-                )
-                mvvp = data_mvvp[0]
-                q_idx = data_mvvp[1]
-
-                mccp = self.charge_mtxel.mccp(
-                    k_idx=k_idx,
-                    kp_idx=kp_idx,
-                )
-
-                # Calculate v(q+G) for this q-index.
-                norm_array = self.l_gq[q_idx].gk_norm2
-                vqg = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
-                sort_order = sort_cryst_like_BGW(
-                    self.l_gq[q_idx].gk_cryst, norm_array
-                )
-                vqg = vqg[sort_order]
-
-                # epsinv was already sorted.
-                epsinv = self.l_epsinv[q_idx]
-
-                # Calculate the different components of the kernel.
-                head = self.calc_head(
-                    vqg=vqg,
-                    epsinv=epsinv,
-                    mccp=mccp,
-                    mvvp=mvvp,
-                )
-                wings = self.calc_wings(
-                    q_idx=q_idx,
-                    vqg=vqg,
-                    epsinv=epsinv,
-                    mccp=mccp,
-                    mvvp=mvvp,
-                )
-                body = self.calc_body(
-                    vqg=vqg,
-                    epsinv=epsinv,
-                    mccp=mccp,
-                    mvvp=mvvp,
-                )
-                exc = self.calc_exc(
-                    vq0g=vq0g,
-                    mvc=mvc,
-                    mvcp=mvcp,
-                )
-                local_blocks.append((k_idx, kp_idx, exc, head, wings, body))
-
-            # Communication after local computation.
             if proc_rank != 0:
                 self.comm.send(local_blocks, dest=0, tag=77)
                 exc_result = self.comm.bcast(None, root=0)
+
                 head_result = self.comm.bcast(None, root=0)
                 wings_result = self.comm.bcast(None, root=0)
                 body_result = self.comm.bcast(None, root=0)
+
             else:
-                # Initialize empty full matrices.
-                exc_mtx = np.zeros(
-                    (numk, numk, num_con, num_con, num_val, num_val),
-                    dtype=complex
-                )
-                head_mtx = np.zeros(
-                    (numk, numk, num_con, num_con, num_val, num_val),
-                    dtype=complex
-                )
-                wings_mtx = np.zeros(
-                    (numk, numk, num_con, num_con, num_val, num_val),
-                    dtype=complex
-                )
-                body_mtx = np.zeros(
-                    (numk, numk, num_con, num_con, num_val, num_val),
-                    dtype=complex
-                )
+                exc_mtx = np.zeros((numk, numk, num_con, num_con, num_val, num_val), dtype=complex)
+                head_mtx = np.zeros_like(exc_mtx)
 
-                # Place the computed results from the root's own data.
-                for k_idx, kp_idx, exc, head, wings, body in local_blocks:
-                    exc_mtx[k_idx, kp_idx] = exc
-                    head_mtx[k_idx, kp_idx] = head
-                    wings_mtx[k_idx, kp_idx] = wings
-                    body_mtx[k_idx, kp_idx] = body
+                wings_mtx = np.zeros_like(exc_mtx)
+                body_mtx = np.zeros_like(exc_mtx)
 
-                # Collect the computed blocks from the other processes.
+                for ik_idx, ikp_idx, exc, head, wings, body in local_blocks:
+                    exc_mtx[ik_idx, ikp_idx] = exc
+                    head_mtx[ik_idx, ikp_idx] = head
+
+                    wings_mtx[ik_idx, ikp_idx] = wings
+                    body_mtx[ik_idx, ikp_idx] = body
+
                 for source in range(1, self.comm_size):
                     remote_blocks = self.comm.recv(source=source, tag=77)
-                    for k_idx, kp_idx, exc, head, wings, body in remote_blocks:
-                        exc_mtx[k_idx, kp_idx] = exc
-                        head_mtx[k_idx, kp_idx] = head
-                        wings_mtx[k_idx, kp_idx] = wings
-                        body_mtx[k_idx, kp_idx] = body
 
-                # --- Symmetrize the matrices ---
-                # Fill in the missing half (k < kp) by symmetry.
-                for k_idx in range(numk):
-                    for kp_idx in range(k_idx):
-                        # In this symmetric case, the element (k, kp) equals (kp, k).
-                        exc_mtx[kp_idx, k_idx] = exc_mtx[k_idx, kp_idx]
-                        head_mtx[kp_idx, k_idx] = head_mtx[k_idx, kp_idx]
-                        wings_mtx[kp_idx, k_idx] = wings_mtx[k_idx, kp_idx]
-                        body_mtx[kp_idx, k_idx] = body_mtx[k_idx, kp_idx]
+                    for ik_idx, ikp_idx, exc, head, wings, body in remote_blocks:
+                        exc_mtx[ik_idx, ikp_idx] = exc
+
+                        head_mtx[ik_idx, ikp_idx] = head
+                        wings_mtx[ik_idx, ikp_idx] = wings
+                        body_mtx[ik_idx, ikp_idx] = body
+
 
                 exc_result = exc_mtx
                 head_result = head_mtx
+
                 wings_result = wings_mtx
                 body_result = body_mtx
 
-                # Broadcast the full results to all processes.
                 self.comm.bcast(exc_result, root=0)
                 self.comm.bcast(head_result, root=0)
+
                 self.comm.bcast(wings_result, root=0)
                 self.comm.bcast(body_result, root=0)
 
-            return {
-                "exc": exc_result,
-                "head": head_result,
-                "wings": wings_result,
-                "body": body_result,
-            }
-
+            return {"exc": exc_result, "head": head_result, "wings": wings_result, "body": body_result,}
+        
         else:
-            # --- Serial (non-parallel) implementation ---
-            exc_mtx = np.zeros(
-                (numk, numk, num_con, num_con, num_val, num_val),
-                dtype=complex,
-            )
-            head_mtx = np.zeros(
-                (numk, numk, num_con, num_con, num_val, num_val),
-                dtype=complex,
-            )
-            wings_mtx = np.zeros(
-                (numk, numk, num_con, num_con, num_val, num_val),
-                dtype=complex,
-            )
-            body_mtx = np.zeros(
-                (numk, numk, num_con, num_con, num_val, num_val),
-                dtype=complex,
-            )
+            exc_mtx = np.zeros((numk, numk, num_con, num_con, num_val, num_val), dtype=complex)
+            head_mtx = np.zeros_like(exc_mtx)
 
-            # Loop only over half the pairs, where k_idx >= kp_idx.
-            for k_idx in range(numk):
-                for kp_idx in range(k_idx + 1):  # ensures k_idx >= kp_idx
-                    mvc = self.charge_mtxel.mvc(k_idx)
-                    mvcp = self.charge_mtxel.mvc(kp_idx)
+            wings_mtx = np.zeros_like(exc_mtx)
+            body_mtx = np.zeros_like(exc_mtx)
 
-                    data_mvvp = self.charge_mtxel.mvvp(
-                        k_idx=k_idx,
-                        kp_idx=kp_idx,
-                        ret_q='True'
-                    )
-                    mvvp = data_mvvp[0]
-                    q_idx = data_mvvp[1]
+            for ikp_idx in range(numk):
+                for ik_idx in range(ikp_idx + 1):
+                    exc, head, wings, body = calc_kernel(ik_idx, ikp_idx)
 
-                    mccp = self.charge_mtxel.mccp(
-                        k_idx=k_idx,
-                        kp_idx=kp_idx,
-                    )
+                    exc_mtx[ik_idx, ikp_idx] = exc
+                    head_mtx[ik_idx, ikp_idx] = head
 
-                    norm_array = self.l_gq[q_idx].gk_norm2
-                    vqg = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
-                    sort_order = sort_cryst_like_BGW(
-                        self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
-                    )
-                    vqg = vqg[sort_order]
+                    wings_mtx[ik_idx, ikp_idx] = wings
+                    body_mtx[ik_idx, ikp_idx] = body
 
-                    epsinv = self.l_epsinv[q_idx]
+                    if ik_idx != ikp_idx:
+                        exc_mtx[ikp_idx, ik_idx] = exc.conjugate()
+                        head_mtx[ikp_idx, ik_idx] = head.conjugate()
 
-                    head = self.calc_head(
-                        vqg=vqg,
-                        epsinv=epsinv,
-                        mccp=mccp,
-                        mvvp=mvvp,
-                    )
-                    wings = self.calc_wings(
-                        q_idx=q_idx,
-                        vqg=vqg,
-                        epsinv=epsinv,
-                        mccp=mccp,
-                        mvvp=mvvp,
-                    )
-                    body = self.calc_body(
-                        vqg=vqg,
-                        epsinv=epsinv,
-                        mccp=mccp,
-                        mvvp=mvvp,
-                    )
-                    exc = self.calc_exc(
-                        vq0g=vq0g,
-                        mvc=mvc,
-                        mvcp=mvcp,
-                    )
+                        wings_mtx[ikp_idx, ik_idx] = wings.conjugate()
+                        body_mtx[ikp_idx, ik_idx] = body.conjugate()
 
-                    exc_mtx[k_idx, kp_idx] = exc
-                    head_mtx[k_idx, kp_idx] = head
-                    wings_mtx[k_idx, kp_idx] = wings
-                    body_mtx[k_idx, kp_idx] = body
+            return {"exc": exc_mtx, "head": head_mtx, "wings": wings_mtx, "body": body_mtx}
+                
 
-            # --- Symmetrize the matrices ---
-            for k_idx in range(numk):
-                for kp_idx in range(k_idx):
-                    exc_mtx[kp_idx, k_idx] = exc_mtx[k_idx, kp_idx]
-                    head_mtx[kp_idx, k_idx] = head_mtx[k_idx, kp_idx]
-                    wings_mtx[kp_idx, k_idx] = wings_mtx[k_idx, kp_idx]
-                    body_mtx[kp_idx, k_idx] = body_mtx[k_idx, kp_idx]
-
-            return {
-                "exc": exc_mtx,
-                "head": head_mtx,
-                "wings": wings_mtx,
-                "body": body_mtx,
-            }
-
-
-    
-    # def calc_kernel_mtxel(
-    #         self,
-    #         parallel:bool = True,
-    # ):
+    # def calc_kernel_mtxel(self, parallel: bool = True):
     #     numk = self.kpts.numk
-
     #     num_val = self.charge_mtxel.val_num
     #     num_con = self.charge_mtxel.con_num
+    #     norm2_q0val = np.dot(np.conjugate(self.q0val), self.q0val)
 
-    #     # Calculate the value of v(q + G) for q = 0.
+    #     # --- Calculate the value of v(q + G) for q = 0 ---
     #     norm_array = self.l_gq[0].gk_norm2
-    #     vq0g = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array)) 
-
-    #     # Sort the indices of v(q + G), for q = 0.
+    #     vq0g = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
     #     sort_order_0 = sort_cryst_like_BGW(
     #         self.l_gq[0].gk_cryst, norm_array
     #     )
-
     #     vq0g = vq0g[sort_order_0]
 
+    #     # If using parallel, work with MPI; otherwise run serially.
     #     if self.in_parallel and parallel:
     #         proc_rank = self.comm.Get_rank()
 
+    #         # On the root process, generate the list of unique pairs with k >= kp.
     #         if proc_rank == 0:
-    #             k_indices, kp_indices = np.meshgrid(
-    #                 np.arange(numk),
-    #                 np.arange(numk),
-    #                 indexing="ij",
-    #             )
-    #             full_pairs = np.stack(
-    #                 (k_indices.flatten(), kp_indices.flatten()), axis=1
-    #             )
+    #             full_pairs = [
+    #                 (k_idx, kp_idx)
+    #                 for k_idx in range(numk)
+    #                 for kp_idx in range(numk)
+    #                 if k_idx >= kp_idx
+    #             ]
+    #             full_pairs = np.array(full_pairs)
     #             chunks = np.array_split(full_pairs, self.comm.Get_size())
     #         else:
     #             chunks = None
 
+    #         # Scatter the unique k–kp pairs among all processes.
     #         local_pairs = self.comm.scatter(chunks, root=0)
 
-    #         # Each element: (k_idx, kp_idx, exc_block, head_block, wings_block, body_block)
-    #         local_blocks = []  
-
+    #         # Compute local blocks for each k–kp pair in the received chunk.
+    #         local_blocks = []
     #         for pair in local_pairs:
     #             k_idx, kp_idx = pair
 
+    #             # Retrieve quantities for the given k-point pair.
     #             mvc = self.charge_mtxel.mvc(k_idx)
-
     #             mvcp = self.charge_mtxel.mvc(kp_idx)
 
     #             data_mvvp = self.charge_mtxel.mvvp(
-    #                 k_idx = k_idx,
-    #                 kp_idx = kp_idx,
-    #                 ret_q = 'True'
+    #                 k_idx=k_idx,
+    #                 kp_idx=kp_idx,
+    #                 ret_q='True'
     #             )
-
     #             mvvp = data_mvvp[0]
     #             q_idx = data_mvvp[1]
 
     #             mccp = self.charge_mtxel.mccp(
-    #                 k_idx = k_idx,
-    #                 kp_idx = kp_idx,
+    #                 k_idx=k_idx,
+    #                 kp_idx=kp_idx,
     #             )
 
-    #             # Calculate the value of v(q + G).
+    #             # Calculate v(q+G) for this q-index.
     #             norm_array = self.l_gq[q_idx].gk_norm2
-    #             vqg = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
-
-    #             # Sort the indices of v(q + G).
+    #             vqg = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
     #             sort_order = sort_cryst_like_BGW(
     #                 self.l_gq[q_idx].gk_cryst, norm_array
     #             )
     #             vqg = vqg[sort_order]
 
-    #             # Indices of epsinv were already sorted.
+    #             # epsinv was already sorted.
     #             epsinv = self.l_epsinv[q_idx]
 
-    #             # Calculate the head, wings, body and exchange part of the kernel.
+    #             # Calculate the different components of the kernel.
     #             head = self.calc_head(
-    #                 vqg = vqg,
-    #                 epsinv = epsinv,
-    #                 mccp = mccp,
-    #                 mvvp = mvvp,
+    #                 vqg=vqg,
+    #                 epsinv=epsinv,
+    #                 mccp=mccp,
+    #                 mvvp=mvvp,
     #             )
-
     #             wings = self.calc_wings(
-    #                 q_idx = q_idx,
-    #                 vqg = vqg,
-    #                 epsinv = epsinv,
-    #                 mccp = mccp,
-    #                 mvvp = mvvp,
+    #                 q_idx=q_idx,
+    #                 vqg=vqg,
+    #                 epsinv=epsinv,
+    #                 mccp=mccp,
+    #                 mvvp=mvvp,
     #             )
-
     #             body = self.calc_body(
-    #                 vqg = vqg,
-    #                 epsinv = epsinv,
-    #                 mccp = mccp,
-    #                 mvvp = mvvp,
+    #                 vqg=vqg,
+    #                 epsinv=epsinv,
+    #                 mccp=mccp,
+    #                 mvvp=mvvp,
     #             )
-
     #             exc = self.calc_exc(
-    #                 vq0g = vq0g,
-    #                 mvc = mvc,
-    #                 mvcp = mvcp,
+    #                 vq0g=vq0g,
+    #                 mvc=mvc,
+    #                 mvcp=mvcp,
     #             )
+    #             local_blocks.append((k_idx, kp_idx, exc, head, wings, body))
 
-    #             local_blocks.append(
-    #                 (k_idx, kp_idx, exc, head, wings, body)
-    #             )
-            
+    #         # Communication after local computation.
     #         if proc_rank != 0:
     #             self.comm.send(local_blocks, dest=0, tag=77)
-
-    #             exc_result = self.comm.bcast(None, root = 0)
-    #             head_result = self.comm.bcast(None, root = 0)
-
-    #             wings_result = self.comm.bcast(None, root = 0)
-    #             body_result = self.comm.bcast(None, root = 0)
-
+    #             exc_result = self.comm.bcast(None, root=0)
+    #             head_result = self.comm.bcast(None, root=0)
+    #             wings_result = self.comm.bcast(None, root=0)
+    #             body_result = self.comm.bcast(None, root=0)
     #         else:
+    #             # Initialize empty full matrices.
     #             exc_mtx = np.zeros(
     #                 (numk, numk, num_con, num_con, num_val, num_val),
-    #                 dtype = complex
+    #                 dtype=complex
     #             )
-
     #             head_mtx = np.zeros(
     #                 (numk, numk, num_con, num_con, num_val, num_val),
-    #                 dtype = complex
+    #                 dtype=complex
     #             )
-
     #             wings_mtx = np.zeros(
     #                 (numk, numk, num_con, num_con, num_val, num_val),
-    #                 dtype = complex
+    #                 dtype=complex
     #             )
-
     #             body_mtx = np.zeros(
     #                 (numk, numk, num_con, num_con, num_val, num_val),
-    #                 dtype = complex
+    #                 dtype=complex
     #             )
 
+    #             # Place the computed results from the root's own data.
     #             for k_idx, kp_idx, exc, head, wings, body in local_blocks:
-    #                 exc_mtx[k_idx, kp_idx] += exc
-    #                 head_mtx[k_idx, kp_idx] += head
+    #                 exc_mtx[k_idx, kp_idx] = exc
+    #                 head_mtx[k_idx, kp_idx] = head
+    #                 wings_mtx[k_idx, kp_idx] = wings
+    #                 body_mtx[k_idx, kp_idx] = body
 
-    #                 wings_mtx[k_idx, kp_idx] += wings
-    #                 body_mtx[k_idx, kp_idx] += body
-
+    #             # Collect the computed blocks from the other processes.
     #             for source in range(1, self.comm_size):
     #                 remote_blocks = self.comm.recv(source=source, tag=77)
-
     #                 for k_idx, kp_idx, exc, head, wings, body in remote_blocks:
-    #                     exc_mtx[k_idx, kp_idx] += exc
-    #                     head_mtx[k_idx, kp_idx] += head
+    #                     exc_mtx[k_idx, kp_idx] = exc
+    #                     head_mtx[k_idx, kp_idx] = head
+    #                     wings_mtx[k_idx, kp_idx] = wings
+    #                     body_mtx[k_idx, kp_idx] = body
 
-    #                     wings_mtx[k_idx, kp_idx] += wings
-    #                     body_mtx[k_idx, kp_idx] += body
+    #             # --- Symmetrize the matrices ---
+    #             # Fill in the missing half (k < kp) by symmetry.
+    #             for k_idx in range(numk):
+    #                 for kp_idx in range(k_idx):
+    #                     # In this symmetric case, the element (k, kp) equals (kp, k).
+    #                     exc_mtx[kp_idx, k_idx] = exc_mtx[k_idx, kp_idx]
+    #                     head_mtx[kp_idx, k_idx] = head_mtx[k_idx, kp_idx]
+    #                     wings_mtx[kp_idx, k_idx] = wings_mtx[k_idx, kp_idx]
+    #                     body_mtx[kp_idx, k_idx] = body_mtx[k_idx, kp_idx]
 
     #             exc_result = exc_mtx
     #             head_result = head_mtx
-
     #             wings_result = wings_mtx
     #             body_result = body_mtx
 
-    #             # Broadcast the results to all processes.
+    #             # Broadcast the full results to all processes.
     #             self.comm.bcast(exc_result, root=0)
     #             self.comm.bcast(head_result, root=0)
-
     #             self.comm.bcast(wings_result, root=0)
     #             self.comm.bcast(body_result, root=0)
 
@@ -862,29 +730,27 @@ class KernelMtxEl:
     #         }
 
     #     else:
-    #         exc_result = np.zeros(
+    #         # --- Serial (non-parallel) implementation ---
+    #         exc_mtx = np.zeros(
+    #             (numk, numk, num_con, num_con, num_val, num_val),
+    #             dtype=complex,
+    #         )
+    #         head_mtx = np.zeros(
+    #             (numk, numk, num_con, num_con, num_val, num_val),
+    #             dtype=complex,
+    #         )
+    #         wings_mtx = np.zeros(
+    #             (numk, numk, num_con, num_con, num_val, num_val),
+    #             dtype=complex,
+    #         )
+    #         body_mtx = np.zeros(
     #             (numk, numk, num_con, num_con, num_val, num_val),
     #             dtype=complex,
     #         )
 
-    #         head_result = np.zeros(
-    #             (numk, numk, num_con, num_con, num_val, num_val),
-    #             dtype=complex,
-    #         )
-
-    #         wings_result = np.zeros(
-    #             (numk, numk, num_con, num_con, num_val, num_val),
-    #             dtype=complex,
-    #         )
-
-    #         body_result = np.zeros(
-    #             (numk, numk, num_con, num_con, num_val, num_val),
-    #             dtype=complex,
-    #         )
-
+    #         # Loop only over half the pairs, where k_idx >= kp_idx.
     #         for k_idx in range(numk):
-    #             for kp_idx in range(numk):
-
+    #             for kp_idx in range(k_idx + 1):  # ensures k_idx >= kp_idx
     #                 mvc = self.charge_mtxel.mvc(k_idx)
     #                 mvcp = self.charge_mtxel.mvc(kp_idx)
 
@@ -893,7 +759,6 @@ class KernelMtxEl:
     #                     kp_idx=kp_idx,
     #                     ret_q='True'
     #                 )
-
     #                 mvvp = data_mvvp[0]
     #                 q_idx = data_mvvp[1]
 
@@ -902,27 +767,21 @@ class KernelMtxEl:
     #                     kp_idx=kp_idx,
     #                 )
 
-    #                 # Calculate the value of v(q + G).
     #                 norm_array = self.l_gq[q_idx].gk_norm2
-    #                 vqg = np.where(norm_array == 0, 0, 1 / np.where(norm_array == 0, 1, norm_array))
-                    
-    #                 # Sort the indices of v(q + G).
+    #                 vqg = np.where(norm_array == 0, 1/norm2_q0val, 1 / np.where(norm_array == 0, 1, norm_array))
     #                 sort_order = sort_cryst_like_BGW(
     #                     self.l_gq[q_idx].gk_cryst, self.l_gq[q_idx].gk_norm2
     #                 )
     #                 vqg = vqg[sort_order]
 
-    #                 # Indices of epsinv were already sorted.
     #                 epsinv = self.l_epsinv[q_idx]
 
-    #                 # Calculate the head, wings and body of the kernel.
     #                 head = self.calc_head(
     #                     vqg=vqg,
     #                     epsinv=epsinv,
     #                     mccp=mccp,
     #                     mvvp=mvvp,
     #                 )
-
     #                 wings = self.calc_wings(
     #                     q_idx=q_idx,
     #                     vqg=vqg,
@@ -930,32 +789,38 @@ class KernelMtxEl:
     #                     mccp=mccp,
     #                     mvvp=mvvp,
     #                 )
-
     #                 body = self.calc_body(
     #                     vqg=vqg,
     #                     epsinv=epsinv,
     #                     mccp=mccp,
     #                     mvvp=mvvp,
     #                 )
-
     #                 exc = self.calc_exc(
     #                     vq0g=vq0g,
     #                     mvc=mvc,
     #                     mvcp=mvcp,
     #                 )
 
-    #                 exc_result[k_idx, kp_idx] += exc
-    #                 head_result[k_idx, kp_idx] += head
+    #                 exc_mtx[k_idx, kp_idx] = exc
+    #                 head_mtx[k_idx, kp_idx] = head
+    #                 wings_mtx[k_idx, kp_idx] = wings
+    #                 body_mtx[k_idx, kp_idx] = body
 
-    #                 wings_result[k_idx, kp_idx] += wings
-    #                 body_result[k_idx, kp_idx] += body
+    #         # --- Symmetrize the matrices ---
+    #         for k_idx in range(numk):
+    #             for kp_idx in range(k_idx):
+    #                 exc_mtx[kp_idx, k_idx] = exc_mtx[k_idx, kp_idx]
+    #                 head_mtx[kp_idx, k_idx] = head_mtx[k_idx, kp_idx]
+    #                 wings_mtx[kp_idx, k_idx] = wings_mtx[k_idx, kp_idx]
+    #                 body_mtx[kp_idx, k_idx] = body_mtx[k_idx, kp_idx]
 
     #         return {
-    #             "exc": exc_result,
-    #             "head": head_result,
-    #             "wings": wings_result,
-    #             "body": body_result,
+    #             "exc": exc_mtx,
+    #             "head": head_mtx,
+    #             "wings": wings_mtx,
+    #             "body": body_mtx,
     #         }
+
         
 
 
