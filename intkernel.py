@@ -4,6 +4,8 @@ from typing import List, NamedTuple
 import numpy as np
 from scipy.spatial import Delaunay
 
+
+from qtm.constants import ELECTRONVOLT_RYD
 from qtm.constants import ELECTRONVOLT_HART
 from qtm.crystal import Crystal
 from qtm.klist import KList
@@ -13,6 +15,8 @@ from qtm.dft.kswfn import KSWfn
 
 from qtm.mpi.comm import MPI4PY_INSTALLED
 from kernel import KernelMtxEl
+from qtm.gw.vcoul import Vcoul
+
 from qtm.interfaces.bgw.wfn2py import WfnData
 from qtm.interfaces.bgw.h5_utils import *
 from qtm.gw.core import (
@@ -72,6 +76,7 @@ def closestpts(fine_kpt, coarse_kpts, periodic=True):
 
 class InterpMtxEl:
     TOLERANCE = 1e-5
+    ryd = 1 / ELECTRONVOLT_RYD
 
     def __init__(
         self,
@@ -209,6 +214,8 @@ class InterpMtxEl:
         l_closest_idx, l_weights = self.store_delaunay()
         self.l_closest_idx = l_closest_idx
         self.l_weights = l_weights 
+
+        self.kernelfactor = 8 * np.pi * InterpMtxEl.ryd / (self.crystal.reallat.cellvol * self.coarse_kpts.numk)
 
 
     
@@ -484,12 +491,10 @@ class InterpMtxEl:
 
         return energy_fine
     
-    def interp_kernel(self, head_mtx: np.ndarray, wings_mtx: np.ndarray, body_mtx: np.ndarray, exc_mtx: np.ndarray, parallel: bool = True):
+    # Note we reuse the vcoul that we would have had from the sigma calculation - since QTM does not sort it, we have to sort it while using it here.
+    def interp_kernel(self, head_mtx: np.ndarray, wings_mtx: np.ndarray, body_mtx: np.ndarray, exc_mtx: np.ndarray, vcoul: Vcoul, parallel: bool = True):
         numk_fine = self.fine_kpts.numk
-        numk_coarse = self.coarse_kpts.numk
-        numq = self.kernel.qpts.numq
 
-        list_k_fine = self.fine_kpts.cryst
         list_k_coarse = self.coarse_kpts.cryst
         list_q = self.kernel.qpts.cryst
 
@@ -527,20 +532,16 @@ class InterpMtxEl:
 
             for idx_ikc, ikc in enumerate(closest_idx_ikf):
                 weight_ikc = weights_ikf[idx_ikc]
-                if weight_ikc == 0:
-                    continue
-
                 coeff_val_ikc = coeff_val[idx_ikc] # (v, a)
+
                 coeff_con_ikc = coeff_con[idx_ikc] # (c, b)
                 kc_pt = list_k_coarse[ikc]
 
 
                 for idx_ikpc, ikpc in enumerate(closest_idx_ikpf):
                     weight_ikpc = weights_ikpf[idx_ikpc]
-                    if weight_ikpc == 0:
-                        continue
-
                     coeffp_val_ikpc = coeffp_val[idx_ikpc] # (V, A)
+
                     coeffp_con_ikpc = coeffp_con[idx_ikpc] # (C, B)
                     kpc_pt = list_k_coarse[ikpc]
 
@@ -553,9 +554,17 @@ class InterpMtxEl:
                     epsinv = self.kernel.l_epsinv[iq]
                     epsinv = epsinv[idx_g0, idx_g0]
 
-                    vqg = self.kernel.l_vqg[iq]
+                    # vqg from QTM has 8*pi multiplied already.
+                    vqg = vcoul.vcoul[iq] / (8 * np.pi)
+
+                    # Sort vqg, using parameters for epsinv in kernel.
+                    sort_order = sort_cryst_like_BGW(self.kernel.l_gq_epsinv[iq].gk_cryst, self.kernel.l_gq_epsinv[iq].gk_norm2)
+
+                    vqg = vqg[sort_order]
                     vqg = vqg[idx_g0]
-                    oneoverq = np.sqrt(vqg)
+
+                    # Similarly, oneoverq has 8 * pi multiplied already.
+                    oneoverq = vcoul.oneoverq[iq] / (8 * np.pi)
 
                     # Interpolate the kernel matrix elements. Shape of each matrix is (b, B, a, A)
                     einstr = "cb, va, CB, VA, bBaA -> cCvV"
@@ -578,7 +587,7 @@ class InterpMtxEl:
 
                     fine_kernel += head + wings + body + exc
 
-            return fine_kernel
+            return fine_kernel * self.kernelfactor
 
 
         if not (self.in_parallel and parallel):
@@ -623,9 +632,33 @@ class InterpMtxEl:
                 fine_kernel = self.comm.bcast(fine_kernel, root=0)
 
         return fine_kernel          
+    
+    def construct_HBSE(self, finekernel: np.ndarray, fineenergyval: np.ndarray, fineenergycon: np.ndarray):
+        numk_fine = self.fine_kpts.numk
+        num_val_fine = self.val_num_fine
+        num_con_fine = self.con_num_fine
 
+        mtx = np.zeros((numk_fine, numk_fine, num_con_fine, num_con_fine, num_val_fine, num_val_fine), dtype=complex)
 
+        k_idx = np.arange(numk_fine)
+        c_idx = np.arange(num_con_fine)
+        v_idx = np.arange(num_val_fine)
 
+        diagvalues = fineenergycon[:, :, np.newaxis] - fineenergyval[:, np.newaxis, :]
 
+        mtx[
+            k_idx[:, None, None],
+            k_idx[:, None, None],
+            c_idx[None, :, None],
+            c_idx[None, :, None],
+            v_idx[None, None, :],
+            v_idx[None, None, :],
+        ] = diagvalues
 
+        mtx += finekernel
 
+        # Reshape it to a 2D array.
+        mtx_2D = mtx.transpose(0, 2, 4, 1, 3, 5)
+        mtx_2D = mtx_2D.reshape(numk_fine * num_con_fine * num_val_fine, numk_fine * num_con_fine * num_val_fine)
+
+        return mtx_2D
