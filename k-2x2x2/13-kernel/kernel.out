@@ -1,6 +1,6 @@
 
  BerkeleyGW version 4.0
- BSE/Kernel code, Complex version, run on 24-Apr-2025 at 03:11:15 +0530
+ BSE/Kernel code, Complex version, run on 25-Apr-2025 at 00:23:26 +0530
 
                                                                  ..o.          
                                                                 .oxxo.         
@@ -97,23 +97,23 @@
  - Number of MPI ranks per block: 1
  - Number of transitions per MPI rank: 64
 
- Memory available: 23519.4 MB per PE
- Memory required for execution: .1 MB per PE
+ Memory available: 20499.1 MB per PE
+ Memory required for execution: 1.2 MB per PE
  Extra memory required for vcoul: .0 MB per PE
 
- Started reading wavefunctions (WFN_co) with 24 state(s) at 03:11:15.
- [ 03:11:15 |   0% ] state  1 / 24.
- [ 03:11:15 |   8% ] state  3 / 24, remaining: 0 s.
- [ 03:11:15 |  17% ] state  5 / 24, remaining: 0 s.
- [ 03:11:15 |  29% ] state  8 / 24, remaining: 0 s.
- [ 03:11:15 |  38% ] state 10 / 24, remaining: 0 s.
- [ 03:11:15 |  46% ] state 12 / 24, remaining: 0 s.
- [ 03:11:15 |  58% ] state 15 / 24, remaining: 0 s.
- [ 03:11:15 |  67% ] state 17 / 24, remaining: 0 s.
- [ 03:11:15 |  79% ] state 20 / 24, remaining: 0 s.
- [ 03:11:15 |  88% ] state 22 / 24, remaining: 0 s.
- [ 03:11:15 |  96% ] state 24 / 24, remaining: 0 s.
- Finished reading wavefunctions (WFN_co) at 03:11:15.
+ Started reading wavefunctions (WFN_co) with 64 state(s) at 00:23:26.
+ [ 00:23:26 |   0% ] state  1 / 64.
+ [ 00:23:26 |   3% ] state  3 / 64, remaining: 0 s.
+ [ 00:23:26 |   9% ] state  7 / 64, remaining: 0 s.
+ [ 00:23:26 |  19% ] state 13 / 64, remaining: 0 s.
+ [ 00:23:26 |  30% ] state 20 / 64, remaining: 0 s.
+ [ 00:23:26 |  39% ] state 26 / 64, remaining: 0 s.
+ [ 00:23:26 |  50% ] state 33 / 64, remaining: 0 s.
+ [ 00:23:26 |  59% ] state 39 / 64, remaining: 0 s.
+ [ 00:23:26 |  69% ] state 45 / 64, remaining: 0 s.
+ [ 00:23:26 |  80% ] state 52 / 64, remaining: 0 s.
+ [ 00:23:26 |  89% ] state 58 / 64, remaining: 0 s.
+ Finished reading wavefunctions (WFN_co) at 00:23:26.
  Elapsed time: 0 s.
 
 
@@ -134,8 +134,8 @@
  - Cutoff of the screened Coulomb interaction (Ry): 2.00
  - Number of G-vectors up to the bare int. cutoff: 27
  - Number of G-vectors up to the screened int. cutoff: 15
- - Number of valence bands: 2
- - Number of conduction bands: 1
+ - Number of valence bands: 4
+ - Number of conduction bands: 4
  - Number of spins: 1
  - Number of spinors: 1
 
@@ -150,8 +150,8 @@
  Calculating Coulomb potential.
  Note: for G=0: setting q0 =  0.001000  0.001000  0.001000
 
- Started calculation of matrix elements with 64 blocked transition(s) at 03:11:15.
- [ 03:11:15 |   0% ] blocked transition  1 / 64.
+ Started calculation of matrix elements with 64 blocked transition(s) at 00:23:26.
+ [ 00:23:26 |   0% ] blocked transition  1 / 64.
  >>> mtxel_kernel called with: ik=           2  ikp=           1
    ic_in=           1  icp_in=           1
    iv_in=           1  ivp_in=           1
@@ -768,28 +768,28 @@
     => wptcol(          23 ) =               (0.0000000000000000,0.0000000000000000)
   ig=          24  ind(ig)=          13  indinv(igp)=           9  epscol(ind(ig))= (-7.63621025122061467E-004,-3.32942766211363033E-007)  vcoul(indinv(igp))=  0.55481347084993793     
     => wptcol(          24 ) = (-4.23667231361958584E-004,-1.84721131716105770E-007)
- [ 03:11:15 |   3% ] blocked transition  3 / 64, remaining: 1 s.
- [ 03:11:15 |   9% ] blocked transition  7 / 64, remaining: 0 s.
- [ 03:11:15 |  19% ] blocked transition 13 / 64, remaining: 0 s.
- [ 03:11:15 |  30% ] blocked transition 20 / 64, remaining: 0 s.
- [ 03:11:15 |  39% ] blocked transition 26 / 64, remaining: 0 s.
- [ 03:11:15 |  50% ] blocked transition 33 / 64, remaining: 0 s.
- [ 03:11:15 |  59% ] blocked transition 39 / 64, remaining: 0 s.
- [ 03:11:15 |  69% ] blocked transition 45 / 64, remaining: 0 s.
- [ 03:11:15 |  80% ] blocked transition 52 / 64, remaining: 0 s.
- [ 03:11:16 |  89% ] blocked transition 58 / 64, remaining: 0 s.
- Finished calculation of matrix elements at 03:11:16.
- Elapsed time: 1 s.
+ [ 00:23:26 |   3% ] blocked transition  3 / 64, remaining: 3 s.
+ [ 00:23:26 |   9% ] blocked transition  7 / 64, remaining: 3 s.
+ [ 00:23:26 |  19% ] blocked transition 13 / 64, remaining: 2 s.
+ [ 00:23:27 |  30% ] blocked transition 20 / 64, remaining: 2 s.
+ [ 00:23:27 |  39% ] blocked transition 26 / 64, remaining: 2 s.
+ [ 00:23:27 |  50% ] blocked transition 33 / 64, remaining: 2 s.
+ [ 00:23:27 |  59% ] blocked transition 39 / 64, remaining: 1 s.
+ [ 00:23:28 |  69% ] blocked transition 45 / 64, remaining: 1 s.
+ [ 00:23:28 |  80% ] blocked transition 52 / 64, remaining: 1 s.
+ [ 00:23:28 |  89% ] blocked transition 58 / 64, remaining: 0 s.
+ Finished calculation of matrix elements at 00:23:29.
+ Elapsed time: 3 s.
 
  Expected size of the BSE matrices:
-   bsemat.h5: .035 MB
+   bsemat.h5: 1.129 MB
 
 
  Frobenius norm of the matrices per spin:
- - Head :  4.374622369049E+0000
- - Wing :  7.853216424434E-0001
- - Body :  3.305997544954E+0000
- - X    :  1.564687428586E+0000
+ - Head :  1.773829367388E+0001
+ - Wing :  4.816911272085E+0000
+ - Body :  2.383633800960E+0001
+ - X    :  2.034505472728E+0001
 
 
 ********************************************************************************
@@ -813,97 +813,95 @@
 
                              CPU (s)        WALL (s)          #
 
- INPUT:          (min.)        0.066           0.008          1
-                 (PE 0)        0.066           0.008
-                 (max.)        0.066           0.008
- EPSCOPY:        (min.)        0.008           0.009          1
-                 (PE 0)        0.008           0.009
-                 (max.)        0.008           0.009
- GENWF:          (min.)        0.033           0.003         64
-                 (PE 0)        0.033           0.003
-                 (max.)        0.033           0.003
+ INPUT:          (min.)        0.002           0.006          1
+                 (PE 0)        0.002           0.006
+                 (max.)        0.002           0.006
+ EPSCOPY:        (min.)        0.009           0.012          1
+                 (PE 0)        0.009           0.012
+                 (max.)        0.009           0.012
+ GENWF:          (min.)        0.034           0.002         64
+                 (PE 0)        0.034           0.002
+                 (max.)        0.034           0.002
  EXCWF:          (min.)        0.000           0.000          0
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL:          (min.)        8.658           0.543         64
-                 (PE 0)        8.658           0.543
-                 (max.)        8.658           0.543
+ MTXEL:          (min.)       48.585           3.051         64
+                 (PE 0)       48.585           3.051
+                 (max.)       48.585           3.051
  FULLBZ:         (min.)        0.000           0.000          2
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- BSEWRITE:       (min.)        0.102           0.007          1
-                 (PE 0)        0.102           0.007
-                 (max.)        0.102           0.007
- MTXEL Setup:    (min.)        0.000           0.001        128
-WARNING: Selected number of conduction bands breaks degenerate subspace in WFN_co. Run degeneracy_check.x for allowable numbers.
-
-                 (PE 0)        0.000           0.001
-                 (max.)        0.000           0.001
+ BSEWRITE:       (min.)        0.102           0.009          1
+                 (PE 0)        0.102           0.009
+                 (max.)        0.102           0.009
+ MTXEL Setup:    (min.)        0.014           0.001        128
+                 (PE 0)        0.014           0.001
+                 (max.)        0.014           0.001
  MTXEL Vcoul:    (min.)        0.000           0.001        128
                  (PE 0)        0.000           0.001
                  (max.)        0.000           0.001
- MTXEL W:        (min.)        0.091           0.002        904
-                 (PE 0)        0.091           0.002
-                 (max.)        0.091           0.002
- MTXEL W-Sum:    (min.)        0.051           0.003        968
-                 (PE 0)        0.051           0.003
-                 (max.)        0.051           0.003
- MTXEL FFT Dir:  (min.)        4.257           0.273         64
-                 (PE 0)        4.257           0.273
-                 (max.)        4.257           0.273
+ MTXEL W:        (min.)        0.094           0.002        904
+                 (PE 0)        0.094           0.002
+                 (max.)        0.094           0.002
+ MTXEL W-Sum:    (min.)        0.125           0.005        968
+                 (PE 0)        0.125           0.005
+                 (max.)        0.125           0.005
+ MTXEL FFT Dir:  (min.)       24.051           1.510         64
+                 (PE 0)       24.051           1.510
+                 (max.)       24.051           1.510
  MTXEL High G:   (min.)        0.015           0.000         64
                  (PE 0)        0.015           0.000
                  (max.)        0.015           0.000
- MTXEL FFT X:    (min.)        4.018           0.250         64
-                 (PE 0)        4.018           0.250
-                 (max.)        4.018           0.250
- MTXEL BSEX:     (min.)        0.001           0.000         64
-                 (PE 0)        0.001           0.000
-                 (max.)        0.001           0.000
- MTXEL INDEX:    (min.)        0.015           0.000         64
-                 (PE 0)        0.015           0.000
-                 (max.)        0.015           0.000
+ MTXEL FFT X:    (min.)       24.015           1.512         64
+                 (PE 0)       24.015           1.512
+                 (max.)       24.015           1.512
+ MTXEL BSEX:     (min.)        0.045           0.002         64
+                 (PE 0)        0.045           0.002
+                 (max.)        0.045           0.002
+ MTXEL INDEX:    (min.)        0.013           0.001         64
+                 (PE 0)        0.013           0.001
+                 (max.)        0.013           0.001
  MTXEL EPSHEAD:  (min.)        0.000           0.000         64
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL EPSREAD:  (min.)        0.003           0.000        960
-                 (PE 0)        0.003           0.000
-                 (max.)        0.003           0.000
+ MTXEL EPSREAD:  (min.)        0.018           0.003        960
+                 (PE 0)        0.018           0.003
+                 (max.)        0.018           0.003
  MTXEL EPSOPEN:  (min.)        0.000           0.000          0
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL G SUM:    (min.)        0.015           0.000         64
-                 (PE 0)        0.015           0.000
-                 (max.)        0.015           0.000
- MTXEL COMM:     (min.)        0.030           0.000         64
-                 (PE 0)        0.030           0.000
-                 (max.)        0.030           0.000
- BSEWRITE COMM:  (min.)        0.048           0.003          1
-                 (PE 0)        0.048           0.003
-                 (max.)        0.048           0.003
- BSEWRITE I/O:   (min.)        0.054           0.004          1
-                 (PE 0)        0.054           0.004
-                 (max.)        0.054           0.004
- MTXEL FFT CC:   (min.)        0.941           0.064         64
-                 (PE 0)        0.941           0.064
-                 (max.)        0.941           0.064
- MTXEL FFT VV:   (min.)        3.270           0.208         64
-                 (PE 0)        3.270           0.208
-                 (max.)        3.270           0.208
+ MTXEL G SUM:    (min.)        0.030           0.002         64
+                 (PE 0)        0.030           0.002
+                 (max.)        0.030           0.002
+ MTXEL COMM:     (min.)        0.015           0.001         64
+                 (PE 0)        0.015           0.001
+                 (max.)        0.015           0.001
+ BSEWRITE COMM:  (min.)        0.099           0.006          1
+                 (PE 0)        0.099           0.006
+                 (max.)        0.099           0.006
+ BSEWRITE I/O:   (min.)        0.003           0.003          1
+                 (PE 0)        0.003           0.003
+                 (max.)        0.003           0.003
+ MTXEL FFT CC:   (min.)       12.090           0.753         64
+                 (PE 0)       12.090           0.753
+                 (max.)       12.090           0.753
+ MTXEL FFT VV:   (min.)       11.930           0.754         64
+                 (PE 0)       11.930           0.754
+                 (max.)       11.930           0.754
  MTXEL FIND:     (min.)        0.000           0.000         64
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL ALLOC:    (min.)        0.000           0.001         64
-                 (PE 0)        0.000           0.001
-                 (max.)        0.000           0.001
+ MTXEL ALLOC:    (min.)        0.000           0.002         64
+                 (PE 0)        0.000           0.002
+                 (max.)        0.000           0.002
  MTXEL FFTBOX:   (min.)        0.000           0.000         64
                  (PE 0)        0.000           0.000
                  (max.)        0.000           0.000
- MTXEL FFT VC:   (min.)        3.987           0.250         64
-                 (PE 0)        3.987           0.250
-                 (max.)        3.987           0.250
+ MTXEL FFT VC:   (min.)       24.008           1.512         64
+                 (PE 0)       24.008           1.512
+                 (max.)       24.008           1.512
 
- TOTAL:          (min.)        8.883           0.571
-                 (PE 0)        8.883           0.571
-                 (max.)        8.883           0.571
+ TOTAL:          (min.)       48.816           3.089
+                 (PE 0)       48.816           3.089
+                 (max.)       48.816           3.089
 
