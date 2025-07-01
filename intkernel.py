@@ -29,6 +29,10 @@ if MPI4PY_INSTALLED:
     from mpi4py import MPI
 
 def closestpts(fine_kpt, coarse_kpts, periodic=True):
+    '''
+    Calculate the closest k-point in a coarse grid to a specified fine k-point.
+
+    '''
     if periodic:
         shifts = np.array(np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1])).reshape(3, -1).T
 
@@ -75,6 +79,14 @@ def closestpts(fine_kpt, coarse_kpts, periodic=True):
 
 
 class InterpMtxEl:
+    '''
+    Class to interpolate the kernel for the Bethe-Salpeter Equation (BSE), from a coarse grid to a fine grid,
+    and create the final BSE Hamiltonian.
+
+    It uses equations [38], [39], [40] and [41] from "BerkeleyGW: A Massively ..." for interpolating the kernel
+    matrix elements and the quasiparticle energies.
+
+    '''
     TOLERANCE = 1e-5
     ryd = 1 / ELECTRONVOLT_RYD
 
@@ -255,6 +267,47 @@ class InterpMtxEl:
         )
         
         return interplcass
+    
+    @classmethod
+    def from_qtm(
+        cls,
+        crystal: Crystal,
+        gspace: GSpace,
+        fine_kpts: KList,
+        coarse_kpts: KList,
+        l_fine_wfn_kgrp: List[List[KSWfn]],
+        l_coarse_wfn_kgrp: List[List[KSWfn]],
+        epsinp: NamedTuple,
+        sigmainp: NamedTuple,
+        kernel: KernelMtxEl,
+        periodic: bool = False,
+        parallel: bool = True,
+        num_val_bands_fine: int = None,
+        num_con_bands_fine: int = None,
+        num_val_bands_coarse: int = None,
+        num_con_bands_coarse: int = None,
+    ):
+        interpclass = InterpMtxEl(
+            crystal=crystal,
+            gspace=gspace,
+            fine_kpts=fine_kpts,
+            coarse_kpts=coarse_kpts,
+            fine_l_wfn=[wfn[0] for wfn in l_fine_wfn_kgrp],
+            coarse_l_wfn=[wfn[0] for wfn in l_coarse_wfn_kgrp],
+            fine_l_gsp_wfn=[wfn[0].gkspc for wfn in l_fine_wfn_kgrp],
+            coarse_l_gsp_wfn=[wfn[0].gkspc for wfn in l_coarse_wfn_kgrp],
+            epsinp=epsinp,
+            sigmainp=sigmainp,
+            kernel=kernel,
+            periodic=periodic,
+            parallel=parallel,
+            num_val_bands_fine=num_val_bands_fine,
+            num_con_bands_fine=num_con_bands_fine,
+            num_val_bands_coarse=num_val_bands_coarse,
+            num_con_bands_coarse=num_con_bands_coarse,            
+        )
+
+        return interpclass
 
 
     def coeff_mtxel(self, fine_k_idx: int, coarse_k_idx: int, type: str):
@@ -662,3 +715,4 @@ class InterpMtxEl:
         mtx_2D = mtx_2D.reshape(numk_fine * num_con_fine * num_val_fine, numk_fine * num_con_fine * num_val_fine)
 
         return mtx_2D
+

@@ -5,6 +5,9 @@ if MPI4PY_INSTALLED:
     from mpi4py import MPI
 
 def parse_eigval(num_eigval, na):
+    '''
+    Given the value of na and input for num_eigval, set the number of eigenvalues to be computed. 
+    '''
     if isinstance(num_eigval, str):
         if num_eigval.lower() == "all":
             return na
@@ -27,6 +30,9 @@ def parse_eigval(num_eigval, na):
 
 
 def distributed_to_regular(D):
+    '''
+    Converts a distributed matrix to a regular numpy matrix by gathering all local blocks
+    '''
     global_mat = np.zeros((D.na, D.na), dtype=D.data.dtype)
     for local_row in range(D.na_rows):
         for local_col in range(D.na_cols):
@@ -38,6 +44,9 @@ def distributed_to_regular(D):
 
 
 def diag_elpa(mtx: np.ndarray, num_eigval="all", size_block=8):
+    '''
+    Takes a matrix and computes its eigenvalues and eigenvectors using the pyELPA library.
+    '''
     na = len(mtx)
     nev = parse_eigval(num_eigval, na)
     nblk = size_block

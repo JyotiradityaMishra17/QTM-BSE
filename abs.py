@@ -24,6 +24,14 @@ if MPI4PY_INSTALLED:
     from mpi4py import MPI
 
 class Absorption:
+    '''
+    Class to compute the absorption matrix elements for the Bethe-Salpeter equation (BSE).
+    
+    The class uses equation [46] to calculate the position matrix elements, which are then used to compute
+    the velocity matrix elements [45] and finally the absorption matrix elements [6]. The equations are sourced
+    from "BerkeleyGW: A Massively ..."
+
+    '''
     fixwings = True
     TOLERANCE = 1e-5
 
@@ -190,6 +198,46 @@ class Absorption:
         )
 
         return absclass    
+    
+    @classmethod
+    def from_qtm(
+        cls,
+        crystal: Crystal,
+        gspace: GSpace,
+        kpts: KList,
+        kptsq: KList,
+        l_wfn_kgrp: List[List[KSWfn]],
+        l_wfnq_kgrp: List[List[KSWfn]],
+        epsinp: NamedTuple,
+        sigmainp: NamedTuple,
+        eigvals: np.ndarray,
+        eigvecs: np.ndarray,
+        polarization: np.ndarray,
+        num_bands_val: int = None,
+        num_bands_con: int = None,
+        parallel: bool = True,
+    ):
+        absclass = Absorption(
+            crystal = crystal,
+            gspace = gspace,
+            kpts = kpts,
+            kptsq = kptsq,
+            l_wfn = [wfn[0] for wfn in l_wfn_kgrp],
+            l_wfnq = [wfn[0] for wfn in l_wfnq_kgrp],
+            l_gsp_wfn = [wfn[0].gkspc for wfn in l_wfn_kgrp],
+            l_gsp_wfnq = [wfn[0].gkspc for wfn in l_wfnq_kgrp],
+            qpts = QPoints.from_cryst(kpts.recilat, epsinp.is_q0, *epsinp.qpts),
+            epsinp = epsinp,
+            sigmainp = sigmainp,
+            eigvals = eigvals,
+            eigvecs = eigvecs,
+            polarization = polarization,
+            num_bands_val = num_bands_val,
+            num_bands_con = num_bands_con,
+            parallel = parallel,
+        )
+
+        return absclass         
 
     def find_g0(self):
         """

@@ -26,6 +26,21 @@ from mtxel import ChargeMtxEL
 
 
 class KernelMtxEl:
+    '''
+    Class to compute the kernel matrix elements for the Bethe-Salpeter equation (BSE).
+    The class computes the head, body and wings of the direct kernel as well as the exchange kernel as follows:
+
+        a. Head: < vck | K^{d, head} | vck' > = M*_{vv'}(k, k', G = 0) * W_{G = 0, G' = 0}(k - k', 0) * M_{cc'}(k, k', G' = 0)
+
+        b. Body: < vck | K^{d, body} | vck' > = (Sum over G != 0, G' != 0) M*_{vv'}(k, k', G) * W_{G, G'}(k - k', 0) * M_{cc'}(k, k', G')
+
+        c. Wings: < vck | K^{d, wings} | vck' > = (Sum over G != 0) M*_{vv'}(k, k', G) * W_{G, G' = 0}(k - k', 0) * M_{cc'}(k, k', G' = 0) + (Sum over G' != 0) M*_{vv'}(k, k', G = 0) * W_{G = 0, G'}(k - k', 0) * M_{cc'}(k, k', G')
+        
+        d. Exchange: < vck | K^{d, exc} | vck' > = (Sum over G != 0) M*_{vc}(k, k, G) * V(G) * M_{v'c'}(k', k', G)
+    
+    The different kernel elements are adjusted to treat the q -> 0 limit as per the prescription in Table 2 of "BerkeleyGW: A Massively ...".    
+    
+    '''
     ryd = 1 / ELECTRONVOLT_RYD
     TOLERANCE = 1e-5
 
@@ -174,8 +189,7 @@ class KernelMtxEl:
             )
 
         return kernelclass
-    
-    
+        
 
     def find_g0(self):
         """
@@ -416,3 +430,4 @@ class KernelMtxEl:
 
             return {"exc": exc_mtx, "head": head_mtx, "wings": wings_mtx, "body": body_mtx}
                 
+

@@ -17,6 +17,16 @@ from qtm.interfaces.bgw.wfn2py import WfnData
 from qtm.interfaces.bgw.h5_utils import *
 
 class ChargeMtxEL:
+    '''
+    Class to compute the charge matrix elements for the kernel in the Bethe-Salpeter equation (BSE).
+    The class computes 
+
+            M_{nn'} (k, q, G) = < n, k + q | exp(i * (q + G) .  r) | n', k > ...[8] from "BerkeleyGW: A Massively ..."
+
+    where n, n' are the band indices, k is the k-point index, q is the q-point index, and G is 
+    the reciprocal lattice vector. Note that the calculation uses k, k' instead of k, q where q = k - k'.
+
+    '''
     TOLERANCE = 1e-5
     vcutoff = 1e-5
 
